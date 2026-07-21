@@ -23,11 +23,13 @@ class AppConstants {
   // ── OSM Tile layers ──────────────────────────────────────────────────────────
   // Standard daytime map (OpenStreetMap)
   static const String osmTileUrl = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-  static const String osmStandardTileUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
-  // Professional dark map — CartoDB Dark Matter (no API key needed, looks like Google Maps night)
-  static const String osmDarkTileUrl = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png';
+  static const String osmStandardTileUrl = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+  // Professional dark map — Esri Dark Gray Canvas (same CDN as satellite, no API key needed)
+  static const String osmDarkTileUrl =
+      'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}';
   // Satellite imagery — Esri World Imagery
-  static const String osmSatelliteUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+  static const String osmSatelliteUrl =
+      'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
 
   // ── Storage keys ─────────────────────────────────────────────────────────────
   static const String truckProfileKey = 'truck_profile_v2';

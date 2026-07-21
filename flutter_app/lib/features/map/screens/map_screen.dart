@@ -97,17 +97,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
     }
   }
 
-  List<String>? _getSubdomains() {
-    switch (_mapLayer) {
-      case 'dark':
-        return ['a', 'b', 'c', 'd'];
-      case 'standard':
-        return ['a', 'b', 'c'];
-      default:
-        return null;
-    }
-  }
-
   void _speakInstruction(String instruction) async {
     if (_tts == null) return;
     if (instruction != _lastSpokenInstruction) {
@@ -192,7 +181,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 urlTemplate: _getTileUrl(),
                 userAgentPackageName: 'com.truckergps.app',
                 retinaMode: MediaQuery.of(context).devicePixelRatio > 1.0,
-                subdomains: _getSubdomains() ?? const ['a', 'b', 'c'],
                 panBuffer: 2,
                 keepBuffer: 5,
               ),
