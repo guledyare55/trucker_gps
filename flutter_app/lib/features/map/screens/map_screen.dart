@@ -16,7 +16,6 @@ import 'package:trucker_gps/features/map/widgets/poi_marker_layer.dart';
 import 'package:trucker_gps/features/map/widgets/settings_panel.dart';
 import 'package:trucker_gps/providers/settings_provider.dart';
 import 'package:trucker_gps/models/settings_models.dart';
-import 'package:trucker_gps/features/hos/screens/hos_logbook_screen.dart';
 import 'package:trucker_gps/features/truck_profile/screens/truck_profile_screen.dart';
 import 'package:trucker_gps/features/weather/screens/weather_screen.dart';
 import 'package:trucker_gps/features/fuel/screens/fuel_screen.dart';
@@ -311,12 +310,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
                             ),
                             const SizedBox(height: 8),
                             _floatButton(
-                              icon: Icons.menu,
-                              tooltip: 'Menu',
-                              onTap: _showSideMenu,
-                            ),
-                            const SizedBox(height: 8),
-                            _floatButton(
                               icon: Icons.tune_rounded,
                               tooltip: 'Settings',
                               onTap: () => showSettingsPanel(context),
@@ -540,16 +533,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
         ],
       );
 
-  void _showSideMenu() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppTheme.bg2,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (_) => _SideMenuSheet(),
-    );
-  }
-
   @override
   void dispose() {
     _tts?.stop();
@@ -557,82 +540,3 @@ class _MapScreenState extends ConsumerState<MapScreen>
   }
 }
 
-class _SideMenuSheet extends ConsumerWidget {
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                  color: AppTheme.textMuted,
-                  borderRadius: BorderRadius.circular(2)),
-            ),
-            const SizedBox(height: 16),
-            const Text('TruckerGPS',
-                style: TextStyle(
-                    color: AppTheme.primary,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700)),
-            const SizedBox(height: 16),
-            _item(context, Icons.person_outline, 'Truck Profile',
-                'Height, weight & restrictions', () {
-              Navigator.pop(context);
-              Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => const TruckProfileScreen()));
-            }),
-            _item(context, Icons.description_outlined, 'HOS Logbook',
-                'Hours of service & ELD', () {
-              Navigator.pop(context);
-              Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) =>
-                          const HosLogbookScreen(userId: 'driver_001')));
-            }),
-            _item(context, Icons.local_gas_station_outlined, 'Fuel Prices',
-                'Diesel prices near you', () {
-              Navigator.pop(context);
-              Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const FuelScreen()));
-            }),
-            _item(context, Icons.cloud_outlined, 'Weather',
-                'Road weather & alerts', () {
-              Navigator.pop(context);
-              Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const WeatherScreen()));
-            }),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _item(BuildContext ctx, IconData icon, String title, String subtitle,
-      VoidCallback onTap) {
-    return ListTile(
-      onTap: onTap,
-      leading: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-            color: AppTheme.bg3, borderRadius: BorderRadius.circular(12)),
-        child: Icon(icon, color: AppTheme.primary, size: 22),
-      ),
-      title: Text(title,
-          style: const TextStyle(
-              color: AppTheme.textPrimary, fontWeight: FontWeight.w600)),
-      subtitle: Text(subtitle,
-          style: const TextStyle(color: AppTheme.textMuted, fontSize: 12)),
-      trailing: const Icon(Icons.chevron_right, color: AppTheme.textMuted),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-    );
-  }
-}

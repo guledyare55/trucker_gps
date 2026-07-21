@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:trucker_gps/core/theme/app_theme.dart';
 import 'package:trucker_gps/models/settings_models.dart';
 import 'package:trucker_gps/providers/settings_provider.dart';
+import 'package:trucker_gps/features/truck_profile/screens/truck_profile_screen.dart';
+import 'package:trucker_gps/features/weather/screens/weather_screen.dart';
+import 'package:trucker_gps/features/fuel/screens/fuel_screen.dart';
 
 /// Shows the settings bottom sheet.
 void showSettingsPanel(BuildContext context) {
@@ -120,6 +123,37 @@ class _SettingsSheet extends ConsumerWidget {
             subtitle: 'Warn when approaching speed limit',
             value: settings.speedWarnings,
             onChanged: notifier.setSpeedWarnings,
+          ),
+
+          // ── Tools & Features ────────────────────────────────────────────
+          const SizedBox(height: 8),
+          const _SectionHeader('FEATURES'),
+          _NavTile(
+            icon: Icons.person_outline,
+            label: 'Truck Profile',
+            subtitle: 'Height, weight & restrictions',
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const TruckProfileScreen()));
+            },
+          ),
+          _NavTile(
+            icon: Icons.local_gas_station_outlined,
+            label: 'Fuel Prices',
+            subtitle: 'Diesel prices near you',
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const FuelScreen()));
+            },
+          ),
+          _NavTile(
+            icon: Icons.cloud_outlined,
+            label: 'Weather',
+            subtitle: 'Road weather & alerts',
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const WeatherScreen()));
+            },
           ),
 
           // Bottom safe area
@@ -301,3 +335,59 @@ class _ToggleTile extends StatelessWidget {
     );
   }
 }
+
+// ── Navigation Tile ───────────────────────────────────────────────────────────
+
+class _NavTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _NavTile({
+    required this.icon,
+    required this.label,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+      child: ListTile(
+        onTap: onTap,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        tileColor: Colors.transparent,
+        leading: Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            color: AppTheme.bg3,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, color: AppTheme.textPrimary, size: 20),
+        ),
+        title: Text(
+          label,
+          style: const TextStyle(
+            color: AppTheme.textPrimary,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        subtitle: Text(
+          subtitle,
+          style: const TextStyle(color: AppTheme.textMuted, fontSize: 11),
+        ),
+        trailing: const Icon(
+          Icons.chevron_right_rounded,
+          color: AppTheme.textMuted,
+          size: 22,
+        ),
+      ),
+    );
+  }
+}
+
