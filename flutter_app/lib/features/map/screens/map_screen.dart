@@ -84,14 +84,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
   }
 
   String _getTileUrl() {
-    switch (_mapLayer) {
-      case 'satellite':
-        return AppConstants.osmSatelliteUrl;
-      case 'standard':
-        return AppConstants.osmTileUrl;
-      default:
-        return AppConstants.osmDarkTileUrl;
+    if (_mapLayer == 'satellite') {
+      return AppConstants.osmSatelliteUrl;
     }
+    return AppConstants.osmTileUrl; // Use standard OSM for both standard and dark (we'll filter dark)
   }
 
   void _speakInstruction(String instruction) async {
@@ -158,6 +154,19 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 retinaMode: MediaQuery.of(context).devicePixelRatio > 1.0,
                 panBuffer: 1,
                 keepBuffer: 3,
+                tileBuilder: _mapLayer == 'dark'
+                    ? (context, tileWidget, tile) {
+                        return ColorFiltered(
+                          colorFilter: const ColorFilter.matrix([
+                            -1,  0,  0, 0, 255,
+                             0, -1,  0, 0, 255,
+                             0,  0, -1, 0, 255,
+                             0,  0,  0, 1,   0,
+                          ]),
+                          child: tileWidget,
+                        );
+                      }
+                    : null,
               ),
 
               // Route polyline
@@ -257,11 +266,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                                 color: _followUser ? AppTheme.primary : null,
                                 onTap: () {
                                   setState(() => _followUser = true);
-                                  final pos = ref.read(currentLatLngProvider);
-                                  if (pos != null) {
-                                    _mapController.move(
-                                        pos, AppConstants.defaultZoom);
-                                  }
+                                  _mapController.move(_center, AppConstants.defaultZoom);
                                 },
                               ),
                               const SizedBox(height: 10),
