@@ -87,7 +87,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
     if (_mapLayer == 'satellite') {
       return AppConstants.osmSatelliteUrl;
     }
-    return AppConstants.osmTileUrl; // Use standard OSM for both standard and dark (we'll filter dark)
+    return AppConstants
+        .osmTileUrl; // Use standard OSM for both standard and dark (we'll filter dark)
   }
 
   void _speakInstruction(String instruction) async {
@@ -132,6 +133,33 @@ class _MapScreenState extends ConsumerState<MapScreen>
       });
     });
 
+    // Zoom to fit route when calculation completes
+    ref.listen(navigationProvider, (previous, next) {
+      if (previous?.status != NavigationStatus.routing &&
+          next.status == NavigationStatus.routing &&
+          next.activeRoute != null &&
+          next.activeRoute!.polyline.isNotEmpty) {
+        final bounds = LatLngBounds.fromPoints(next.activeRoute!.polyline);
+        try {
+          _mapController.fitCamera(CameraFit.bounds(
+            bounds: bounds,
+            padding: const EdgeInsets.only(
+                top: 100, bottom: 250, left: 40, right: 40),
+          ));
+        } catch (_) {
+          try {
+            // Deprecated fallback for older flutter_map versions
+            // ignore: deprecated_member_use
+            _mapController.fitBounds(bounds,
+                options: const FitBoundsOptions(
+                    padding: EdgeInsets.only(
+                        top: 100, bottom: 250, left: 40, right: 40)));
+          } catch (_) {}
+        }
+        setState(() => _followUser = false);
+      }
+    });
+
     return Scaffold(
       backgroundColor: AppTheme.bg1,
       body: Stack(
@@ -161,10 +189,26 @@ class _MapScreenState extends ConsumerState<MapScreen>
                     ? (context, tileWidget, tile) {
                         return ColorFiltered(
                           colorFilter: const ColorFilter.matrix([
-                            -1,  0,  0, 0, 255,
-                             0, -1,  0, 0, 255,
-                             0,  0, -1, 0, 255,
-                             0,  0,  0, 1,   0,
+                            -1,
+                            0,
+                            0,
+                            0,
+                            255,
+                            0,
+                            -1,
+                            0,
+                            0,
+                            255,
+                            0,
+                            0,
+                            -1,
+                            0,
+                            255,
+                            0,
+                            0,
+                            0,
+                            1,
+                            0,
                           ]),
                           child: tileWidget,
                         );
@@ -216,7 +260,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
           // ── TOP overlay (search bar / nav banner) ────────────────────────
           Positioned(
-            top: 0, left: 0, right: 0,
+            top: 0,
+            left: 0,
+            right: 0,
             child: SafeArea(
               bottom: false,
               child: navState.activeRoute != null
@@ -237,7 +283,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
           // ── BOTTOM overlay (speed HUD + buttons + route bar) ─────────────
           Positioned(
-            bottom: 0, left: 0, right: 0,
+            bottom: 0,
+            left: 0,
+            right: 0,
             child: SafeArea(
               top: false,
               child: Padding(
@@ -266,8 +314,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
                               onTap: () => setState(() {
                                 if (_mapLayer == 'dark') {
                                   _mapLayer = 'standard';
-                                } else if (_mapLayer == 'standard') _mapLayer = 'satellite';
-                                else _mapLayer = 'dark';
+                                } else if (_mapLayer == 'standard')
+                                  _mapLayer = 'satellite';
+                                else
+                                  _mapLayer = 'dark';
                               }),
                             ),
                             const SizedBox(height: 8),
@@ -279,7 +329,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
                               color: _followUser ? AppTheme.primary : null,
                               onTap: () {
                                 setState(() => _followUser = true);
-                                _mapController.move(_center, AppConstants.defaultZoom);
+                                _mapController.move(
+                                    _center, AppConstants.defaultZoom);
                               },
                             ),
                             const SizedBox(height: 8),
@@ -334,11 +385,13 @@ class _MapScreenState extends ConsumerState<MapScreen>
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(navState.error!,
-                          style: const TextStyle(color: Colors.white, fontSize: 13)),
+                          style: const TextStyle(
+                              color: Colors.white, fontSize: 13)),
                     ),
                     GestureDetector(
-                      onTap: () =>
-                          ref.read(navigationProvider.notifier).cancelNavigation(),
+                      onTap: () => ref
+                          .read(navigationProvider.notifier)
+                          .cancelNavigation(),
                       child: const Icon(Icons.close,
                           color: Colors.white70, size: 18),
                     ),
@@ -362,8 +415,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 spreadRadius: 4)
           ],
         ),
-        child:
-            const Icon(Icons.local_shipping, color: Colors.black, size: 26),
+        child: const Icon(Icons.local_shipping, color: Colors.black, size: 26),
       );
 
   Widget _buildDestMarker() => Container(
@@ -371,8 +423,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
           color: AppTheme.accent,
           shape: BoxShape.circle,
           boxShadow: [
-            BoxShadow(
-                color: Color(0x80FF6B35), blurRadius: 12, spreadRadius: 3)
+            BoxShadow(color: Color(0x80FF6B35), blurRadius: 12, spreadRadius: 3)
           ],
         ),
         child: const Icon(Icons.flag, color: Colors.white, size: 22),
@@ -440,7 +491,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   scrollDirection: Axis.horizontal,
                   child: Row(
                     children: [
-                      _chip(Icons.straighten, '${route.distanceMiles.toStringAsFixed(1)} mi'),
+                      _chip(Icons.straighten,
+                          '${route.distanceMiles.toStringAsFixed(1)} mi'),
                       const SizedBox(width: 8),
                       _chip(Icons.access_time, route.durationFormatted),
                       const SizedBox(width: 8),
@@ -460,7 +512,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.primary,
                   foregroundColor: Colors.black,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10)),
                   minimumSize: const Size(0, 36),
@@ -591,8 +644,7 @@ class _SideMenuSheet extends ConsumerWidget {
       subtitle: Text(subtitle,
           style: const TextStyle(color: AppTheme.textMuted, fontSize: 12)),
       trailing: const Icon(Icons.chevron_right, color: AppTheme.textMuted),
-      shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     );
   }
 }

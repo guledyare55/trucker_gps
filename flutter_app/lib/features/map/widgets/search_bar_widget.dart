@@ -3,7 +3,7 @@ import 'package:trucker_gps/core/theme/app_theme.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:dio/dio.dart';
 
-/// Destination search bar — tapping activates it; keyboard never auto-opens.
+/// Destination search bar — always full width, no jittery animations.
 class SearchBarWidget extends StatefulWidget {
   final void Function(LatLng destination, String name) onDestinationSelected;
 
@@ -21,7 +21,8 @@ class _SearchBarWidgetState extends State<SearchBarWidget>
 
   List<Map<String, dynamic>> _suggestions = [];
   bool _isSearching = false;
-  bool _isExpanded = false; // Collapsed by default — no keyboard on startup
+  bool _hasFocus = false;
+
   late AnimationController _animCtrl;
   late Animation<double> _fadeAnim;
 
@@ -31,9 +32,16 @@ class _SearchBarWidgetState extends State<SearchBarWidget>
     _animCtrl = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 200));
     _fadeAnim = CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut);
+
     _focusNode.addListener(() {
-      if (!_focusNode.hasFocus && _controller.text.isEmpty) {
-        _collapse();
+      setState(() => _hasFocus = _focusNode.hasFocus);
+      if (_hasFocus) {
+        _animCtrl.forward();
+      } else {
+        if (_controller.text.isEmpty) {
+          setState(() => _suggestions = []);
+        }
+        _animCtrl.reverse();
       }
     });
   }
@@ -47,23 +55,12 @@ class _SearchBarWidgetState extends State<SearchBarWidget>
     super.dispose();
   }
 
-  void _expand() {
-    setState(() => _isExpanded = true);
-    _animCtrl.forward();
-    // Request focus instantly on the next frame for a snappy keyboard
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _focusNode.requestFocus();
-    });
-  }
-
-  void _collapse() {
-    _focusNode.unfocus();
+  void _clear() {
     _controller.clear();
+    _focusNode.unfocus();
     setState(() {
-      _isExpanded = false;
       _suggestions = [];
     });
-    _animCtrl.reverse();
   }
 
   Future<void> _search(String query) async {
@@ -100,7 +97,7 @@ class _SearchBarWidgetState extends State<SearchBarWidget>
     final lat = double.tryParse(s['lat'] ?? '0') ?? 0;
     final lon = double.tryParse(s['lon'] ?? '0') ?? 0;
     final name = s['display_name'] ?? '';
-    _collapse();
+    _clear();
     widget.onDestinationSelected(LatLng(lat, lon), name);
   }
 
@@ -111,97 +108,82 @@ class _SearchBarWidgetState extends State<SearchBarWidget>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // ── Collapsed pill (tap to open) or expanded text field ──────────
-          GestureDetector(
-            onTap: _isExpanded ? null : _expand,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 220),
-              curve: Curves.easeInOut,
-              decoration: BoxDecoration(
-                color: AppTheme.panelBg,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(
-                  color: _isExpanded
-                      ? AppTheme.primary.withOpacity(0.6)
-                      : const Color(0xFF252535),
-                  width: _isExpanded ? 1.5 : 1,
+          // ── Search field ─────────────────────────────────────────────────
+          Container(
+            decoration: BoxDecoration(
+              color: AppTheme.panelBg,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: _hasFocus
+                    ? AppTheme.primary.withOpacity(0.6)
+                    : const Color(0xFF252535),
+                width: _hasFocus ? 1.5 : 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: _hasFocus
+                      ? AppTheme.primary.withOpacity(0.15)
+                      : Colors.black38,
+                  blurRadius: _hasFocus ? 20 : 12,
+                  offset: const Offset(0, 3),
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: _isExpanded
-                        ? AppTheme.primary.withOpacity(0.15)
-                        : Colors.black38,
-                    blurRadius: _isExpanded ? 20 : 12,
-                    offset: const Offset(0, 3),
+              ],
+            ),
+            child: Row(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  child: Icon(
+                    Icons.search,
+                    color: _hasFocus ? AppTheme.primary : AppTheme.textMuted,
+                    size: 22,
                   ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
-                    child: Icon(
-                      Icons.search,
-                      color: _isExpanded ? AppTheme.primary : AppTheme.textMuted,
-                      size: 22,
+                ),
+                Expanded(
+                  child: TextField(
+                    controller: _controller,
+                    focusNode: _focusNode,
+                    autofocus: false, // Prevents keyboard opening on startup
+                    style: const TextStyle(
+                        color: AppTheme.textPrimary, fontSize: 16),
+                    decoration: const InputDecoration(
+                      hintText: 'Where to?',
+                      hintStyle:
+                          TextStyle(color: AppTheme.textMuted, fontSize: 15),
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(vertical: 15),
                     ),
+                    onChanged: _search,
                   ),
-                  Expanded(
-                    child: _isExpanded
-                        ? TextField(
-                            controller: _controller,
-                            focusNode: _focusNode,
-                            autofocus: false,
-                            style: const TextStyle(
-                                color: AppTheme.textPrimary, fontSize: 16),
-                            decoration: const InputDecoration(
-                              hintText: 'Search destination...',
-                              hintStyle: TextStyle(
-                                  color: AppTheme.textMuted, fontSize: 15),
-                              border: InputBorder.none,
-                              contentPadding:
-                                  EdgeInsets.symmetric(vertical: 15),
-                            ),
-                            onChanged: _search,
-                          )
-                        : const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 15),
-                            child: Text(
-                              'Where to?',
-                              style: TextStyle(
-                                  color: AppTheme.textMuted, fontSize: 15),
-                            ),
-                          ),
-                  ),
-                  if (_isSearching)
-                    const Padding(
-                      padding: EdgeInsets.only(right: 14),
-                      child: SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: AppTheme.primary),
-                      ),
-                    )
-                  else if (_isExpanded)
-                    IconButton(
-                      icon: const Icon(Icons.close,
-                          color: AppTheme.textMuted, size: 20),
-                      onPressed: _collapse,
-                    )
-                  else
-                    const Padding(
-                      padding: EdgeInsets.only(right: 12),
-                      child: Icon(Icons.local_shipping,
-                          color: AppTheme.primary, size: 20),
+                ),
+                if (_isSearching)
+                  const Padding(
+                    padding: EdgeInsets.only(right: 14),
+                    child: SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: AppTheme.primary),
                     ),
-                ],
-              ),
+                  )
+                else if (_controller.text.isNotEmpty || _hasFocus)
+                  IconButton(
+                    icon: const Icon(Icons.close,
+                        color: AppTheme.textMuted, size: 20),
+                    onPressed: _clear,
+                  )
+                else
+                  const Padding(
+                    padding: EdgeInsets.only(right: 12),
+                    child: Icon(Icons.local_shipping,
+                        color: AppTheme.primary, size: 20),
+                  ),
+              ],
             ),
           ),
 
           // ── Suggestions dropdown ─────────────────────────────────────────
-          if (_isExpanded && _suggestions.isNotEmpty)
+          if (_hasFocus && _suggestions.isNotEmpty)
             FadeTransition(
               opacity: _fadeAnim,
               child: Container(
@@ -231,8 +213,7 @@ class _SearchBarWidgetState extends State<SearchBarWidget>
                       final parts =
                           (s['display_name'] as String? ?? '').split(',');
                       final title = parts.take(2).join(',').trim();
-                      final subtitle =
-                          parts.skip(2).take(2).join(',').trim();
+                      final subtitle = parts.skip(2).take(2).join(',').trim();
                       return ListTile(
                         onTap: () => _select(s),
                         contentPadding: const EdgeInsets.symmetric(
@@ -255,8 +236,7 @@ class _SearchBarWidgetState extends State<SearchBarWidget>
                         subtitle: subtitle.isNotEmpty
                             ? Text(subtitle,
                                 style: const TextStyle(
-                                    color: AppTheme.textMuted,
-                                    fontSize: 11))
+                                    color: AppTheme.textMuted, fontSize: 11))
                             : null,
                         dense: true,
                       );
