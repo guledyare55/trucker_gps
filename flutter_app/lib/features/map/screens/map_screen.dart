@@ -156,6 +156,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 urlTemplate: _getTileUrl(),
                 userAgentPackageName: 'com.truckergps.app',
                 retinaMode: MediaQuery.of(context).devicePixelRatio > 1.0,
+                panBuffer: 1,
+                keepBuffer: 3,
               ),
 
               // Route polyline
