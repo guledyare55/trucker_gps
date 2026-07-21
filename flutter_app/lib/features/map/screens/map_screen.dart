@@ -108,24 +108,28 @@ class _MapScreenState extends ConsumerState<MapScreen>
     final speed = ref.watch(currentSpeedMphProvider);
 
     // Follow user location on map
-    locationAsync.whenData((pos) {
-      final latLng = LatLng(pos.latitude, pos.longitude);
-      if (_followUser && _mapReady) {
-        try {
-          _mapController.move(
-              latLng,
-              navState.status == NavigationStatus.navigating
-                  ? AppConstants.navigationZoom
-                  : AppConstants.defaultZoom);
-        } catch (_) {}
-      }
+    ref.listen(locationStreamProvider, (previous, next) {
+      next.whenData((pos) {
+        final latLng = LatLng(pos.latitude, pos.longitude);
+        if (_followUser && _mapReady) {
+          try {
+            final currentNavState = ref.read(navigationProvider);
+            _mapController.move(
+                latLng,
+                currentNavState.status == NavigationStatus.navigating
+                    ? AppConstants.navigationZoom
+                    : AppConstants.defaultZoom);
+          } catch (_) {}
+        }
 
-      // Update navigation progress and speak instructions
-      if (navState.status == NavigationStatus.navigating) {
-        ref.read(navigationProvider.notifier).updateProgress(latLng);
-        final step = navState.currentStep;
-        if (step != null) _speakInstruction(step.instruction);
-      }
+        // Update navigation progress and speak instructions
+        final currentNavState = ref.read(navigationProvider);
+        if (currentNavState.status == NavigationStatus.navigating) {
+          ref.read(navigationProvider.notifier).updateProgress(latLng);
+          final step = currentNavState.currentStep;
+          if (step != null) _speakInstruction(step.instruction);
+        }
+      });
     });
 
     return Scaffold(

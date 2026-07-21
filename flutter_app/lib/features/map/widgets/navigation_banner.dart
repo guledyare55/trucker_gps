@@ -97,12 +97,14 @@ class NavigationBanner extends StatelessWidget {
                   Icon(_directionIcon(nextStep.type),
                       color: AppTheme.textMuted, size: 16),
                   const SizedBox(width: 8),
-                  Text(
-                    'Then: ${nextStep.instruction}',
-                    style: const TextStyle(
-                        color: AppTheme.textMuted, fontSize: 12),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  Expanded(
+                    child: Text(
+                      'Then: ${nextStep.instruction}',
+                      style: const TextStyle(
+                          color: AppTheme.textMuted, fontSize: 12),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ],
               ),
