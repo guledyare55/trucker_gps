@@ -7,9 +7,21 @@ import 'package:trucker_gps/features/hos/screens/hos_logbook_screen.dart';
 import 'package:trucker_gps/features/fuel/screens/fuel_screen.dart';
 import 'package:trucker_gps/features/weather/screens/weather_screen.dart';
 
+import 'package:shared_preferences/shared_preferences.dart';
+
+final sharedPrefsProvider = Provider<SharedPreferences>((ref) {
+  throw UnimplementedError();
+});
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const ProviderScope(child: TruckerGPSApp()));
+  final prefs = await SharedPreferences.getInstance();
+  runApp(ProviderScope(
+    overrides: [
+      sharedPrefsProvider.overrideWithValue(prefs),
+    ],
+    child: const TruckerGPSApp(),
+  ));
 }
 
 class TruckerGPSApp extends ConsumerWidget {

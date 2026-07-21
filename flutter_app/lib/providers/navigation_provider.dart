@@ -91,15 +91,23 @@ class NavigationNotifier extends StateNotifier<NavigationState> {
     required LatLng origin,
     required LatLng destination,
     String? destinationName,
+    bool avoidTolls = false,
+    bool avoidHighways = false,
   }) async {
     state = state.copyWith(isLoading: true, clearError: true, clearRoute: true);
 
     try {
+      final excludes = <String>[];
+      if (avoidTolls) excludes.add('toll');
+      if (avoidHighways) excludes.add('motorway');
+      final excludeParam =
+          excludes.isNotEmpty ? '&exclude=${excludes.join(',')}' : '';
+
       final url =
           'https://router.project-osrm.org/route/v1/driving/'
           '${origin.longitude},${origin.latitude};'
           '${destination.longitude},${destination.latitude}'
-          '?overview=simplified&geometries=geojson&steps=true&annotations=false';
+          '?overview=simplified&geometries=geojson&steps=true&annotations=false$excludeParam';
 
       // Fetch raw string to avoid Dio blocking the main thread with JSON decoding
       final resp = await _dio.get(

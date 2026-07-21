@@ -9,11 +9,13 @@ import 'package:trucker_gps/core/constants/app_constants.dart';
 import 'package:trucker_gps/core/theme/app_theme.dart';
 import 'package:trucker_gps/providers/navigation_provider.dart';
 import 'package:trucker_gps/providers/location_provider.dart';
-import 'package:trucker_gps/models/route_models.dart';
 import 'package:trucker_gps/features/map/widgets/navigation_banner.dart';
 import 'package:trucker_gps/features/map/widgets/speed_hud.dart';
 import 'package:trucker_gps/features/map/widgets/search_bar_widget.dart';
 import 'package:trucker_gps/features/map/widgets/poi_marker_layer.dart';
+import 'package:trucker_gps/features/map/widgets/settings_panel.dart';
+import 'package:trucker_gps/providers/settings_provider.dart';
+import 'package:trucker_gps/models/settings_models.dart';
 import 'package:trucker_gps/features/hos/screens/hos_logbook_screen.dart';
 import 'package:trucker_gps/features/truck_profile/screens/truck_profile_screen.dart';
 import 'package:trucker_gps/features/weather/screens/weather_screen.dart';
@@ -107,6 +109,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
     final navState = ref.watch(navigationProvider);
     final locationAsync = ref.watch(locationStreamProvider);
     final speed = ref.watch(currentSpeedMphProvider);
+    final settings = ref.watch(settingsProvider);
 
     // Follow user location on map
     ref.listen(locationStreamProvider, (previous, next) {
@@ -232,7 +235,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                       point: LatLng(pos.latitude, pos.longitude),
                       width: 52,
                       height: 52,
-                      child: _buildTruckMarker(),
+                      child: _buildTruckMarker(settings.vehicleType),
                     ),
                     if (navState.activeRoute != null)
                       Marker(
@@ -265,6 +268,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
                                 origin: LatLng(pos.latitude, pos.longitude),
                                 destination: dest,
                                 destinationName: name,
+                                avoidTolls: settings.avoidTolls,
+                                avoidHighways: settings.avoidHighways,
                               );
                         });
                       },
@@ -329,6 +334,12 @@ class _MapScreenState extends ConsumerState<MapScreen>
                               icon: Icons.menu,
                               tooltip: 'Menu',
                               onTap: _showSideMenu,
+                            ),
+                            const SizedBox(height: 8),
+                            _floatButton(
+                              icon: Icons.tune_rounded,
+                              tooltip: 'Settings',
+                              onTap: () => showSettingsPanel(context),
                             ),
                           ],
                         ),
@@ -395,7 +406,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
     );
   }
 
-  Widget _buildTruckMarker() => Container(
+  Widget _buildTruckMarker(VehicleType type) => Container(
         decoration: BoxDecoration(
           color: AppTheme.primary,
           shape: BoxShape.circle,
@@ -406,7 +417,13 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 spreadRadius: 4)
           ],
         ),
-        child: const Icon(Icons.local_shipping, color: Colors.black, size: 26),
+        child: Icon(
+          type == VehicleType.truck
+              ? Icons.local_shipping
+              : Icons.directions_car_rounded,
+          color: Colors.black,
+          size: 26,
+        ),
       );
 
   Widget _buildDestMarker() => Container(
