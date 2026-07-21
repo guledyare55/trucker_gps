@@ -372,6 +372,90 @@ out body 40;
     return a;
   }
 
+  /// Search for nearby POIs by category around a center point (e.g. current location)
+  Future<void> searchNearbyPois(LatLng center, String category) async {
+    state = state.copyWith(isLoading: true);
+    try {
+      // Create a small bounding box around the center (~20km radius)
+      final double latOffset = 0.2;
+      final double lonOffset = 0.2 / cos(center.latitude * pi / 180);
+      
+      final minLat = center.latitude - latOffset;
+      final maxLat = center.latitude + latOffset;
+      final minLon = center.longitude - lonOffset;
+      final maxLon = center.longitude + lonOffset;
+
+      String queryTags = '';
+      switch (category) {
+        case 'Fuel':
+          queryTags = 'node["amenity"="fuel"]($minLat,$minLon,$maxLat,$maxLon); node["amenity"="truck_stop"]($minLat,$minLon,$maxLat,$maxLon);';
+          break;
+        case 'Parking':
+          queryTags = 'node["amenity"="parking"]["hgv"="yes"]($minLat,$minLon,$maxLat,$maxLon); node["amenity"="truck_parking"]($minLat,$minLon,$maxLat,$maxLon);';
+          break;
+        case 'Weigh Station':
+          queryTags = 'node["highway"="weigh_station"]($minLat,$minLon,$maxLat,$maxLon);';
+          break;
+        case 'Food':
+          queryTags = 'node["amenity"="restaurant"]($minLat,$minLon,$maxLat,$maxLon); node["amenity"="fast_food"]($minLat,$minLon,$maxLat,$maxLon);';
+          break;
+        case 'Rest Area':
+          queryTags = 'node["highway"="rest_area"]($minLat,$minLon,$maxLat,$maxLon); node["amenity"="rest_area"]($minLat,$minLon,$maxLat,$maxLon);';
+          break;
+        default:
+          queryTags = 'node["amenity"="$category"]($minLat,$minLon,$maxLat,$maxLon);';
+      }
+
+      final query = '''
+[out:json][timeout:15];
+(
+  $queryTags
+);
+out body 40;
+''';
+
+      final resp = await _dio.post(
+        'https://overpass-api.de/api/interpreter',
+        data: query,
+        options: Options(
+          contentType: 'text/plain',
+          headers: {'User-Agent': 'TruckerGPS/1.0'},
+          receiveTimeout: const Duration(seconds: 15),
+        ),
+      );
+
+      final elements = (resp.data['elements'] as List? ?? []);
+      final pois = <PoiPoint>[];
+
+      for (final el in elements) {
+        final tags = el['tags'] as Map<String, dynamic>? ?? {};
+        final lat = (el['lat'] as num?)?.toDouble();
+        final lon = (el['lon'] as num?)?.toDouble();
+        if (lat == null || lon == null) continue;
+
+        final name = tags['name'] as String? ?? category;
+        String mappedType = 'truck_stop';
+        if (category == 'Food') mappedType = 'restaurant';
+        if (category == 'Weigh Station') mappedType = 'weigh_station';
+        if (category == 'Rest Area') mappedType = 'rest_area';
+        if (category == 'Parking') mappedType = 'truck_parking';
+
+        pois.add(PoiPoint(
+          id: el['id']?.toString() ?? '$lat$lon',
+          name: name,
+          type: mappedType,
+          brand: tags['brand'] as String?,
+          location: LatLng(lat, lon),
+          amenities: _parseAmenities(tags),
+        ));
+      }
+
+      state = state.copyWith(nearbyPois: pois, isLoading: false);
+    } catch (_) {
+      state = state.copyWith(isLoading: false);
+    }
+  }
+
   String _friendlyError(Object e) {
     final msg = e.toString();
     if (msg.contains('SocketException') || msg.contains('connection')) {

@@ -6,8 +6,13 @@ import 'package:dio/dio.dart';
 /// Destination search bar — always full width, no jittery animations.
 class SearchBarWidget extends StatefulWidget {
   final void Function(LatLng destination, String name) onDestinationSelected;
+  final void Function(String category)? onFilterSelected;
 
-  const SearchBarWidget({super.key, required this.onDestinationSelected});
+  const SearchBarWidget({
+    super.key,
+    required this.onDestinationSelected,
+    this.onFilterSelected,
+  });
 
   @override
   State<SearchBarWidget> createState() => _SearchBarWidgetState();
@@ -259,45 +264,40 @@ class _SearchBarWidgetState extends State<SearchBarWidget>
                       icon: Icons.local_gas_station_rounded,
                       label: 'Fuel',
                       onTap: () {
-                        _controller.text = 'Truck Stop';
-                        _search('Truck Stop');
-                        _focusNode.requestFocus();
+                        widget.onFilterSelected?.call('Fuel');
+                        _clear();
                       },
                     ),
                     _QuickFilterChip(
                       icon: Icons.local_parking_rounded,
                       label: 'Parking',
                       onTap: () {
-                        _controller.text = 'Truck Parking';
-                        _search('Truck Parking');
-                        _focusNode.requestFocus();
+                        widget.onFilterSelected?.call('Parking');
+                        _clear();
                       },
                     ),
                     _QuickFilterChip(
                       icon: Icons.monitor_weight_rounded,
                       label: 'Weigh Station',
                       onTap: () {
-                        _controller.text = 'Weigh Station';
-                        _search('Weigh Station');
-                        _focusNode.requestFocus();
+                        widget.onFilterSelected?.call('Weigh Station');
+                        _clear();
                       },
                     ),
                     _QuickFilterChip(
                       icon: Icons.fastfood_rounded,
                       label: 'Food',
                       onTap: () {
-                        _controller.text = 'Restaurant';
-                        _search('Restaurant');
-                        _focusNode.requestFocus();
+                        widget.onFilterSelected?.call('Food');
+                        _clear();
                       },
                     ),
                     _QuickFilterChip(
                       icon: Icons.park_rounded,
                       label: 'Rest Area',
                       onTap: () {
-                        _controller.text = 'Rest Area';
-                        _search('Rest Area');
-                        _focusNode.requestFocus();
+                        widget.onFilterSelected?.call('Rest Area');
+                        _clear();
                       },
                     ),
                   ],

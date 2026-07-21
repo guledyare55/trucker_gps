@@ -252,6 +252,14 @@ class _MapScreenState extends ConsumerState<MapScreen>
                               );
                         });
                       },
+                      onFilterSelected: (category) {
+                        locationAsync.whenData((pos) {
+                          ref.read(navigationProvider.notifier).searchNearbyPois(
+                                LatLng(pos.latitude, pos.longitude),
+                                category,
+                              );
+                        });
+                      },
                     ),
             ),
           ),
