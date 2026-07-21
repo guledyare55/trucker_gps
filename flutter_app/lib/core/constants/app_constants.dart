@@ -8,7 +8,7 @@ class AppConstants {
   // Physical device  => set to your Render URL e.g. https://truckergps-api.onrender.com
   static const String apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://10.0.2.2:8000/api/v1',
+    defaultValue: 'https://truckergps-api.onrender.com/api/v1',
   );
 
   static const String renderApiUrl = 'https://truckergps-api.onrender.com/api/v1';
