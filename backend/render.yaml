@@ -41,6 +41,9 @@ services:
     name: truckergps-redis
     plan: free               # 25MB free tier
     maxmemoryPolicy: allkeys-lru
+    ipAllowList:
+      - source: 0.0.0.0/0
+        description: allow everywhere
 
 databases:
   # ─── PostgreSQL Database ─────────────────────────────────────────────────────
