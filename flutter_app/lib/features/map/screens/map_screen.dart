@@ -379,22 +379,39 @@ class _MapScreenState extends ConsumerState<MapScreen>
       required String tooltip,
       required VoidCallback onTap,
       Color? color}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 50,
-        height: 50,
-        decoration: BoxDecoration(
-          color: AppTheme.bg2,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFF252535)),
-          boxShadow: const [
-            BoxShadow(
-                color: Colors.black38, blurRadius: 8, offset: Offset(0, 2))
-          ],
+    final isActive = color != null;
+    return Tooltip(
+      message: tooltip,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: isActive
+                ? AppTheme.primary.withOpacity(0.15)
+                : AppTheme.panelBg,
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: isActive
+                  ? AppTheme.primary.withOpacity(0.7)
+                  : const Color(0xFF2A2A3F),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: isActive
+                    ? AppTheme.primary.withOpacity(0.25)
+                    : Colors.black45,
+                blurRadius: 10,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Icon(icon,
+              color: isActive ? AppTheme.primary : AppTheme.textSecondary,
+              size: 20),
         ),
-        child:
-            Icon(icon, color: color ?? AppTheme.textSecondary, size: 22),
       ),
     );
   }

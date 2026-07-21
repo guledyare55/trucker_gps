@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:trucker_gps/core/theme/app_theme.dart';
 
-/// Garmin-style speed display with large readable text
+/// Premium Garmin-style speed display with animated color transitions
 class SpeedHud extends StatelessWidget {
   final double speedMph;
 
@@ -10,17 +10,29 @@ class SpeedHud extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final speed = speedMph < 0 ? 0.0 : speedMph;
-    // Color warning when speed is unusually high (>80 mph)
-    final speedColor = speed > 80 ? AppTheme.danger : AppTheme.textPrimary;
+    final isOverSpeed = speed > 80;
+    final speedColor = isOverSpeed ? AppTheme.danger : AppTheme.primary;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+      width: 80,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       decoration: BoxDecoration(
         color: AppTheme.panelBg,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF252535)),
-        boxShadow: const [
-          BoxShadow(color: Colors.black38, blurRadius: 8, offset: Offset(0, 2))
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: isOverSpeed
+              ? AppTheme.danger.withOpacity(0.6)
+              : const Color(0xFF252535),
+          width: isOverSpeed ? 1.5 : 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: isOverSpeed
+                ? AppTheme.danger.withOpacity(0.2)
+                : Colors.black38,
+            blurRadius: 12,
+            offset: const Offset(0, 3),
+          ),
         ],
       ),
       child: Column(
@@ -30,18 +42,20 @@ class SpeedHud extends StatelessWidget {
             speed.toStringAsFixed(0),
             style: TextStyle(
               color: speedColor,
-              fontSize: 40,
+              fontSize: 34,
               fontWeight: FontWeight.w900,
               height: 1.0,
-              letterSpacing: -2,
+              letterSpacing: -1,
             ),
           ),
-          const Text(
-            'mph',
+          const SizedBox(height: 2),
+          Text(
+            'MPH',
             style: TextStyle(
-              color: AppTheme.textMuted,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
+              color: isOverSpeed ? AppTheme.danger : AppTheme.textMuted,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1,
             ),
           ),
         ],
