@@ -3,9 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:trucker_gps/core/theme/app_theme.dart';
 import 'package:trucker_gps/core/constants/app_constants.dart';
 import 'package:trucker_gps/features/map/screens/map_screen.dart';
-import 'package:trucker_gps/features/hos/screens/hos_logbook_screen.dart';
-import 'package:trucker_gps/features/fuel/screens/fuel_screen.dart';
-import 'package:trucker_gps/features/weather/screens/weather_screen.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -69,7 +66,7 @@ class _SplashScreenState extends State<SplashScreen>
         Navigator.of(context).pushReplacement(
           PageRouteBuilder(
             transitionDuration: const Duration(milliseconds: 500),
-            pageBuilder: (_, __, ___) => const MainShell(),
+            pageBuilder: (_, __, ___) => const MapScreen(),
             transitionsBuilder: (_, anim, __, child) =>
                 FadeTransition(opacity: anim, child: child),
           ),
@@ -150,72 +147,3 @@ class _SplashScreenState extends State<SplashScreen>
   }
 }
 
-// ── Main App Shell with Bottom Nav ──────────────────────────────────────────
-
-class MainShell extends StatefulWidget {
-  const MainShell({super.key});
-
-  @override
-  State<MainShell> createState() => _MainShellState();
-}
-
-class _MainShellState extends State<MainShell> {
-  int _selectedIndex = 0;
-
-  final List<Widget> _pages = [
-    const MapScreen(),
-    const HosLogbookScreen(userId: 'driver_001'),
-    const FuelScreen(),
-    const WeatherScreen(),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.bg1,
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: _pages,
-      ),
-      bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          color: AppTheme.bg2,
-          border: Border(top: BorderSide(color: Color(0xFF252535), width: 1)),
-        ),
-        child: BottomNavigationBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          type: BottomNavigationBarType.fixed,
-          currentIndex: _selectedIndex,
-          selectedItemColor: AppTheme.primary,
-          unselectedItemColor: AppTheme.textMuted,
-          selectedFontSize: 11,
-          unselectedFontSize: 11,
-          onTap: (i) => setState(() => _selectedIndex = i),
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.map_outlined),
-              activeIcon: Icon(Icons.map),
-              label: 'Navigate',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.description_outlined),
-              activeIcon: Icon(Icons.description),
-              label: 'HOS Log',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.local_gas_station_outlined),
-              activeIcon: Icon(Icons.local_gas_station),
-              label: 'Fuel',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.cloud_outlined),
-              activeIcon: Icon(Icons.cloud),
-              label: 'Weather',
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
