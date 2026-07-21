@@ -22,7 +22,7 @@ class AppConstants {
 
   // ── OSM Tile layers ──────────────────────────────────────────────────────────
   static const String osmTileUrl = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-  static const String osmDarkTileUrl = 'https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}.png';
+  static const String osmDarkTileUrl = 'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png';
   static const String osmSatelliteUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
 
   // ── Storage keys ─────────────────────────────────────────────────────────────
