@@ -214,7 +214,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
           // ── UI Overlays ───────────────────────────────────────────────────
           SafeArea(
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                // Top banner / search
                 if (navState.activeRoute != null)
                   NavigationBanner(navState: navState)
                 else
@@ -230,8 +232,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
                     },
                   ),
 
+                // Push controls to bottom
                 const Spacer(),
 
+                // Bottom controls — never overflows
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                   child: Column(
@@ -243,6 +247,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                           SpeedHud(speedMph: speed),
                           const Spacer(),
                           Column(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               _floatButton(
                                 icon: _mapLayer == 'dark'
@@ -257,7 +262,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                                   else _mapLayer = 'dark';
                                 }),
                               ),
-                              const SizedBox(height: 10),
+                              const SizedBox(height: 8),
                               _floatButton(
                                 icon: _followUser
                                     ? Icons.my_location
@@ -269,7 +274,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                                   _mapController.move(_center, AppConstants.defaultZoom);
                                 },
                               ),
-                              const SizedBox(height: 10),
+                              const SizedBox(height: 8),
                               _floatButton(
                                 icon: Icons.menu,
                                 tooltip: 'Menu',
@@ -280,6 +285,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                         ],
                       ),
 
+                      // Route summary shown only when a route is calculated
                       if (navState.status == NavigationStatus.routing)
                         _buildRouteSummaryBar(navState),
                     ],
@@ -397,49 +403,54 @@ class _MapScreenState extends ConsumerState<MapScreen>
   Widget _buildRouteSummaryBar(NavigationState navState) {
     final route = navState.activeRoute!;
     return Container(
-      margin: const EdgeInsets.only(top: 12),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
         color: AppTheme.bg2,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFF252535)),
       ),
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          _chip(Icons.straighten, '${route.distanceMiles.toStringAsFixed(1)} mi'),
-          const SizedBox(width: 16),
-          _chip(Icons.access_time, route.durationFormatted),
-          const SizedBox(width: 16),
-          _chip(Icons.place, '${navState.nearbyPois.length} stops'),
-          const Spacer(),
-          ElevatedButton.icon(
-            onPressed: () {
-              ref.read(navigationProvider.notifier).startNavigation();
-              setState(() => _followUser = true);
-            },
-            icon: const Icon(Icons.navigation, size: 18),
-            label: const Text('Go'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primary,
-              foregroundColor: Colors.black,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
-            ),
-          ),
-          const SizedBox(width: 8),
-          GestureDetector(
-            onTap: () =>
-                ref.read(navigationProvider.notifier).cancelNavigation(),
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                  color: AppTheme.bg4,
-                  borderRadius: BorderRadius.circular(10)),
-              child: const Icon(Icons.close,
-                  color: AppTheme.textSecondary, size: 20),
-            ),
+          Row(
+            children: [
+              _chip(Icons.straighten, '${route.distanceMiles.toStringAsFixed(1)} mi'),
+              const SizedBox(width: 12),
+              _chip(Icons.access_time, route.durationFormatted),
+              const SizedBox(width: 12),
+              _chip(Icons.place, '${navState.nearbyPois.length} stops'),
+              const Spacer(),
+              ElevatedButton.icon(
+                onPressed: () {
+                  ref.read(navigationProvider.notifier).startNavigation();
+                  setState(() => _followUser = true);
+                },
+                icon: const Icon(Icons.navigation, size: 16),
+                label: const Text('Go'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primary,
+                  foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                  minimumSize: const Size(0, 36),
+                ),
+              ),
+              const SizedBox(width: 6),
+              GestureDetector(
+                onTap: () =>
+                    ref.read(navigationProvider.notifier).cancelNavigation(),
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                      color: AppTheme.bg4,
+                      borderRadius: BorderRadius.circular(10)),
+                  child: const Icon(Icons.close,
+                      color: AppTheme.textSecondary, size: 18),
+                ),
+              ),
+            ],
           ),
         ],
       ),
