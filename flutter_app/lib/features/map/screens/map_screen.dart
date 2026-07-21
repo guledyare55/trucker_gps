@@ -431,12 +431,21 @@ class _MapScreenState extends ConsumerState<MapScreen>
         children: [
           Row(
             children: [
-              _chip(Icons.straighten, '${route.distanceMiles.toStringAsFixed(1)} mi'),
-              const SizedBox(width: 12),
-              _chip(Icons.access_time, route.durationFormatted),
-              const SizedBox(width: 12),
-              _chip(Icons.place, '${navState.nearbyPois.length} stops'),
-              const Spacer(),
+              Expanded(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _chip(Icons.straighten, '${route.distanceMiles.toStringAsFixed(1)} mi'),
+                      const SizedBox(width: 8),
+                      _chip(Icons.access_time, route.durationFormatted),
+                      const SizedBox(width: 8),
+                      _chip(Icons.place, '${navState.nearbyPois.length} stops'),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
               ElevatedButton.icon(
                 onPressed: () {
                   ref.read(navigationProvider.notifier).startNavigation();
