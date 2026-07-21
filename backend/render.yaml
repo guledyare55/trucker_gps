@@ -36,15 +36,14 @@ services:
         value: '["*"]'
     healthCheckPath: /health
 
-  # ─── PostgreSQL Database (with PostGIS) ──────────────────────────────────────
-  - type: pserv              # Managed PostgreSQL
-    name: truckergps-db
-    plan: free               # 1GB free tier
-    databaseName: truckergps
-    postgresMajorVersion: 16
-
   # ─── Redis (for caching + WebSocket pub/sub) ──────────────────────────────────
   - type: redis
     name: truckergps-redis
     plan: free               # 25MB free tier
     maxmemoryPolicy: allkeys-lru
+
+databases:
+  # ─── PostgreSQL Database ─────────────────────────────────────────────────────
+  - name: truckergps-db
+    plan: free
+    databaseName: truckergps
