@@ -1,0 +1,35 @@
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+gunicorn==23.0.0
+
+# Database
+sqlalchemy[asyncio]==2.0.36
+asyncpg==0.30.0
+geoalchemy2==0.15.2
+alembic==1.14.0
+
+# Validation
+pydantic[email]==2.10.3
+pydantic-settings==2.6.1
+
+# Redis (real-time pub/sub + caching)
+redis[asyncio]==5.2.1
+
+# HTTP client (for ORS, Overpass, weather APIs)
+httpx==0.28.1
+
+# Auth
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.20
+
+# Utilities
+python-dotenv==1.0.1
+pytz==2024.2
+geopy==2.4.1
+shapely==2.0.6
+
+# Testing
+pytest==8.3.4
+pytest-asyncio==0.24.0
+httpx==0.28.1

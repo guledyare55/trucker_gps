@@ -1,0 +1,24 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+.env
+.pytest_cache/
+htmlcov/
+
+# Flutter
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+*.iml
+.idea/
+.vscode/
+
+# Ignore iOS/Android specific generated/build folders if needed, though they are usually checked in for native adjustments
+# We'll leave them to be tracked unless they are build/
+
+# OS specific
+.DS_Store
+Thumbs.db
