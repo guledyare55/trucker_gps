@@ -50,8 +50,8 @@ class _SearchBarWidgetState extends State<SearchBarWidget>
   void _expand() {
     setState(() => _isExpanded = true);
     _animCtrl.forward();
-    // Small delay so the widget is built before requesting focus
-    Future.delayed(const Duration(milliseconds: 80), () {
+    // Request focus instantly on the next frame for a snappy keyboard
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _focusNode.requestFocus();
     });
   }

@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:dio/dio.dart';
@@ -99,8 +101,14 @@ class NavigationNotifier extends StateNotifier<NavigationState> {
           '${destination.longitude},${destination.latitude}'
           '?overview=simplified&geometries=geojson&steps=true&annotations=false';
 
-      final resp = await _dio.get(url);
-      final data = resp.data as Map<String, dynamic>;
+      // Fetch raw string to avoid Dio blocking the main thread with JSON decoding
+      final resp = await _dio.get(
+        url,
+        options: Options(responseType: ResponseType.plain),
+      );
+      
+      // Decode JSON on a background isolate
+      final data = await compute(jsonDecode, resp.data.toString()) as Map<String, dynamic>;
 
       if (data['code'] != 'Ok' || (data['routes'] as List).isEmpty) {
         throw Exception('No route found between these locations');

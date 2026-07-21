@@ -145,8 +145,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
               minZoom: AppConstants.minZoom,
               maxZoom: AppConstants.maxZoom,
               onMapEvent: (event) {
-                if (event is MapEventMove &&
-                    event.source != MapEventSource.mapController) {
+                if (event.source != MapEventSource.mapController) {
                   if (_followUser) setState(() => _followUser = false);
                 }
               },
