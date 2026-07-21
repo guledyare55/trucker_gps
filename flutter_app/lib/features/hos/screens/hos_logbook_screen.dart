@@ -6,7 +6,7 @@ import 'package:trucker_gps/services/api_service.dart';
 class HosLogbookScreen extends ConsumerStatefulWidget {
   final String userId;
 
-  const HosLogbookScreen({Key? key, required this.userId}) : super(key: key);
+  const HosLogbookScreen({super.key, required this.userId});
 
   @override
   ConsumerState<HosLogbookScreen> createState() => _HosLogbookScreenState();
@@ -142,7 +142,7 @@ class _HosLogbookScreenState extends ConsumerState<HosLogbookScreen> {
                         ...violations.map((v) => Padding(
                           padding: const EdgeInsets.only(top: 4),
                           child: Text('• ${v['message']}', style: TextStyle(color: Theme.of(context).colorScheme.error)),
-                        )).toList(),
+                        )),
                       ],
                     ),
                   ),
@@ -158,7 +158,7 @@ class _HosLogbookScreenState extends ConsumerState<HosLogbookScreen> {
     final isSelected = statusId == currentStatus;
     return ElevatedButton(
       style: ElevatedButton.styleFrom(
-        backgroundColor: isSelected ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.surfaceVariant,
+        backgroundColor: isSelected ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.surfaceContainerHighest,
         foregroundColor: isSelected ? Colors.white : Theme.of(context).colorScheme.onSurfaceVariant,
         minimumSize: const Size(150, 50),
       ),

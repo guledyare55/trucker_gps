@@ -13,7 +13,7 @@ void main() async {
 }
 
 class TruckerGPSApp extends ConsumerWidget {
-  const TruckerGPSApp({Key? key}) : super(key: key);
+  const TruckerGPSApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -30,7 +30,7 @@ class TruckerGPSApp extends ConsumerWidget {
 // ── Animated Splash Screen ───────────────────────────────────────────────────
 
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({Key? key}) : super(key: key);
+  const SplashScreen({super.key});
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -141,7 +141,7 @@ class _SplashScreenState extends State<SplashScreen>
 // ── Main App Shell with Bottom Nav ──────────────────────────────────────────
 
 class MainShell extends StatefulWidget {
-  const MainShell({Key? key}) : super(key: key);
+  const MainShell({super.key});
 
   @override
   State<MainShell> createState() => _MainShellState();

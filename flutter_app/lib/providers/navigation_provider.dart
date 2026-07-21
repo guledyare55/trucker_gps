@@ -97,7 +97,7 @@ class NavigationNotifier extends StateNotifier<NavigationState> {
           'https://router.project-osrm.org/route/v1/driving/'
           '${origin.longitude},${origin.latitude};'
           '${destination.longitude},${destination.latitude}'
-          '?overview=full&geometries=geojson&steps=true&annotations=false';
+          '?overview=simplified&geometries=geojson&steps=true&annotations=false';
 
       final resp = await _dio.get(url);
       final data = resp.data as Map<String, dynamic>;
@@ -109,16 +109,20 @@ class NavigationNotifier extends StateNotifier<NavigationState> {
       final osrmRoute = data['routes'][0] as Map<String, dynamic>;
       final route = _parseOsrmRoute(osrmRoute, origin, destination);
 
-      // Fetch truck POIs along the route via Overpass API (free, no key)
-      final pois = await _fetchTruckPois(route);
-
       state = state.copyWith(
         status: NavigationStatus.routing,
         activeRoute: route,
         currentStepIndex: 0,
-        nearbyPois: pois,
+        nearbyPois: [], // Clear old POIs
         isLoading: false,
       );
+
+      // Fetch truck POIs along the route in the background (non-blocking)
+      _fetchTruckPois(route).then((pois) {
+        if (mounted) {
+          state = state.copyWith(nearbyPois: pois);
+        }
+      });
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
@@ -154,7 +158,7 @@ class NavigationNotifier extends StateNotifier<NavigationState> {
           type: _mapOsrmType(maneuverType, modifier),
           location: LatLng(
             (location.length > 1 ? location[1] : 0).toDouble(),
-            (location.length > 0 ? location[0] : 0).toDouble(),
+            (location.isNotEmpty ? location[0] : 0).toDouble(),
           ),
         ));
       }
@@ -371,7 +375,9 @@ out body 40;
 
   void updateProgress(LatLng currentLocation) {
     if (state.activeRoute == null ||
-        state.status != NavigationStatus.navigating) return;
+        state.status != NavigationStatus.navigating) {
+      return;
+    }
 
     final steps = state.activeRoute!.steps;
     if (state.currentStepIndex >= steps.length) {

@@ -4,7 +4,7 @@ import 'package:trucker_gps/services/api_service.dart';
 import 'package:trucker_gps/providers/api_providers.dart';
 
 class RoutePlannerScreen extends ConsumerStatefulWidget {
-  const RoutePlannerScreen({Key? key}) : super(key: key);
+  const RoutePlannerScreen({super.key});
 
   @override
   ConsumerState<RoutePlannerScreen> createState() => _RoutePlannerScreenState();

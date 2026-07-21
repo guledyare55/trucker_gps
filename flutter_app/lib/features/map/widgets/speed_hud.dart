@@ -5,7 +5,7 @@ import 'package:trucker_gps/core/theme/app_theme.dart';
 class SpeedHud extends StatelessWidget {
   final double speedMph;
 
-  const SpeedHud({Key? key, required this.speedMph}) : super(key: key);
+  const SpeedHud({super.key, required this.speedMph});
 
   @override
   Widget build(BuildContext context) {

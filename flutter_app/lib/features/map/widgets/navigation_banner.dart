@@ -6,7 +6,7 @@ import 'package:trucker_gps/providers/navigation_provider.dart';
 class NavigationBanner extends StatelessWidget {
   final NavigationState navState;
 
-  const NavigationBanner({Key? key, required this.navState}) : super(key: key);
+  const NavigationBanner({super.key, required this.navState});
 
   @override
   Widget build(BuildContext context) {

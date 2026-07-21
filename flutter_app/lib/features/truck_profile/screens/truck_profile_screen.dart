@@ -6,7 +6,7 @@ import 'package:trucker_gps/models/route_models.dart';
 import 'package:trucker_gps/providers/navigation_provider.dart';
 
 class TruckProfileScreen extends ConsumerStatefulWidget {
-  const TruckProfileScreen({Key? key}) : super(key: key);
+  const TruckProfileScreen({super.key});
 
   @override
   ConsumerState<TruckProfileScreen> createState() => _TruckProfileScreenState();
@@ -153,7 +153,7 @@ class _TruckProfileScreenState extends ConsumerState<TruckProfileScreen> {
                     style: TextStyle(color: AppTheme.textMuted, fontSize: 12)),
                 value: _hazmat,
                 onChanged: (v) => setState(() => _hazmat = v),
-                activeColor: AppTheme.warning,
+                activeThumbColor: AppTheme.warning,
                 secondary: Icon(
                   Icons.warning_amber_rounded,
                   color: _hazmat ? AppTheme.warning : AppTheme.textMuted,

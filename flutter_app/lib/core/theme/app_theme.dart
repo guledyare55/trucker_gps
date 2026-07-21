@@ -32,12 +32,10 @@ class AppTheme {
         primary: primary,
         secondary: accent,
         surface: bg2,
-        background: bg1,
         error: danger,
         onPrimary: Colors.black,
         onSecondary: Colors.white,
         onSurface: textPrimary,
-        onBackground: textPrimary,
       ),
       scaffoldBackgroundColor: bg1,
       cardTheme: CardThemeData(

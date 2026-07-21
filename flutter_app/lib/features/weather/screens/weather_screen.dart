@@ -5,7 +5,7 @@ import 'package:trucker_gps/providers/api_providers.dart';
 import 'package:trucker_gps/providers/location_provider.dart';
 
 class WeatherScreen extends ConsumerWidget {
-  const WeatherScreen({Key? key}) : super(key: key);
+  const WeatherScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -157,7 +157,7 @@ class _WeatherContent extends StatelessWidget {
                     fontWeight: FontWeight.w600,
                     fontSize: 16)),
             const SizedBox(height: 12),
-            ...forecast.take(6).map((h) => _forecastRow(h)).toList(),
+            ...forecast.take(6).map((h) => _forecastRow(h)),
           ],
         ],
       ),

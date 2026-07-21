@@ -31,7 +31,7 @@ class RouteStep {
       exitNumber: json['exit_number'],
       location: LatLng(
         (coords.length > 1 ? coords[1] : 0).toDouble(),
-        (coords.length > 0 ? coords[0] : 0).toDouble(),
+        (coords.isNotEmpty ? coords[0] : 0).toDouble(),
       ),
     );
   }

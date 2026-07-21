@@ -8,10 +8,10 @@ class PoiSearchScreen extends ConsumerStatefulWidget {
   final double currentLon;
 
   const PoiSearchScreen({
-    Key? key,
+    super.key,
     required this.currentLat,
     required this.currentLon,
-  }) : super(key: key);
+  });
 
   @override
   ConsumerState<PoiSearchScreen> createState() => _PoiSearchScreenState();
@@ -121,7 +121,7 @@ class _PoiSearchScreenState extends ConsumerState<PoiSearchScreen> {
                           margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           child: ListTile(
                             leading: CircleAvatar(
-                              backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
+                              backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                               child: _getIconForType(poi['type']),
                             ),
                             title: Text(poi['name'] ?? 'Unknown Location'),

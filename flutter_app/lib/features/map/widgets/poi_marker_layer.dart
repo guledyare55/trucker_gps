@@ -7,7 +7,7 @@ import 'package:trucker_gps/models/route_models.dart';
 class PoiMarkerLayer extends StatelessWidget {
   final List<PoiPoint> pois;
 
-  const PoiMarkerLayer({Key? key, required this.pois}) : super(key: key);
+  const PoiMarkerLayer({super.key, required this.pois});
 
   @override
   Widget build(BuildContext context) {

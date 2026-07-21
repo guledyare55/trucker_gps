@@ -23,7 +23,7 @@ import 'package:trucker_gps/features/fuel/screens/fuel_screen.dart';
 import 'package:trucker_gps/core/platform/permissions.dart';
 
 class MapScreen extends ConsumerStatefulWidget {
-  const MapScreen({Key? key}) : super(key: key);
+  const MapScreen({super.key});
 
   @override
   ConsumerState<MapScreen> createState() => _MapScreenState();
@@ -261,8 +261,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
                                       : Icons.map,
                               tooltip: 'Map Layer',
                               onTap: () => setState(() {
-                                if (_mapLayer == 'dark') _mapLayer = 'standard';
-                                else if (_mapLayer == 'standard') _mapLayer = 'satellite';
+                                if (_mapLayer == 'dark') {
+                                  _mapLayer = 'standard';
+                                } else if (_mapLayer == 'standard') _mapLayer = 'satellite';
                                 else _mapLayer = 'dark';
                               }),
                             ),

@@ -7,8 +7,7 @@ import 'package:dio/dio.dart';
 class SearchBarWidget extends StatefulWidget {
   final void Function(LatLng destination, String name) onDestinationSelected;
 
-  const SearchBarWidget({Key? key, required this.onDestinationSelected})
-      : super(key: key);
+  const SearchBarWidget({super.key, required this.onDestinationSelected});
 
   @override
   State<SearchBarWidget> createState() => _SearchBarWidgetState();

@@ -4,7 +4,7 @@ import 'package:trucker_gps/core/theme/app_theme.dart';
 import 'package:trucker_gps/providers/api_providers.dart';
 
 class FuelScreen extends ConsumerWidget {
-  const FuelScreen({Key? key}) : super(key: key);
+  const FuelScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -127,7 +127,7 @@ class _FuelContent extends StatelessWidget {
               final diff = price - (national as num).toDouble();
               return _RegionRow(
                   region: entry.key, price: price, nationalDiff: diff);
-            }).toList(),
+            }),
 
           const SizedBox(height: 24),
 
