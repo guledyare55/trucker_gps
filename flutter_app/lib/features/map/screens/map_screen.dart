@@ -195,8 +195,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 subdomains: _getSubdomains() ?? const ['a', 'b', 'c'],
                 panBuffer: 2,
                 keepBuffer: 5,
-                maxNativeZoom: 19,
-                // No tileBuilder filter needed — CartoDB/ArcGIS tiles are pre-styled
               ),
 
               // Route polyline

@@ -25,7 +25,7 @@ class AppConstants {
   static const String osmTileUrl = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
   static const String osmStandardTileUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
   // Professional dark map — CartoDB Dark Matter (no API key needed, looks like Google Maps night)
-  static const String osmDarkTileUrl = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+  static const String osmDarkTileUrl = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png';
   // Satellite imagery — Esri World Imagery
   static const String osmSatelliteUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
 
