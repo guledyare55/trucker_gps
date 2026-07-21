@@ -211,87 +211,86 @@ class _MapScreenState extends ConsumerState<MapScreen>
             ],
           ),
 
-          // ── UI Overlays ───────────────────────────────────────────────────
-          SafeArea(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Top banner / search
-                if (navState.activeRoute != null)
-                  NavigationBanner(navState: navState)
-                else
-                  SearchBarWidget(
-                    onDestinationSelected: (dest, name) {
-                      locationAsync.whenData((pos) {
-                        ref.read(navigationProvider.notifier).calculateRoute(
-                              origin: LatLng(pos.latitude, pos.longitude),
-                              destination: dest,
-                              destinationName: name,
-                            );
-                      });
-                    },
-                  ),
+          // ── TOP overlay (search bar / nav banner) ────────────────────────
+          Positioned(
+            top: 0, left: 0, right: 0,
+            child: SafeArea(
+              bottom: false,
+              child: navState.activeRoute != null
+                  ? NavigationBanner(navState: navState)
+                  : SearchBarWidget(
+                      onDestinationSelected: (dest, name) {
+                        locationAsync.whenData((pos) {
+                          ref.read(navigationProvider.notifier).calculateRoute(
+                                origin: LatLng(pos.latitude, pos.longitude),
+                                destination: dest,
+                                destinationName: name,
+                              );
+                        });
+                      },
+                    ),
+            ),
+          ),
 
-                // Push controls to bottom
-                const Spacer(),
-
-                // Bottom controls — never overflows
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          SpeedHud(speedMph: speed),
-                          const Spacer(),
-                          Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              _floatButton(
-                                icon: _mapLayer == 'dark'
-                                    ? Icons.satellite_alt
-                                    : _mapLayer == 'standard'
-                                        ? Icons.dark_mode
-                                        : Icons.map,
-                                tooltip: 'Map Layer',
-                                onTap: () => setState(() {
-                                  if (_mapLayer == 'dark') _mapLayer = 'standard';
-                                  else if (_mapLayer == 'standard') _mapLayer = 'satellite';
-                                  else _mapLayer = 'dark';
-                                }),
-                              ),
-                              const SizedBox(height: 8),
-                              _floatButton(
-                                icon: _followUser
-                                    ? Icons.my_location
-                                    : Icons.location_searching,
-                                tooltip: 'Recenter',
-                                color: _followUser ? AppTheme.primary : null,
-                                onTap: () {
-                                  setState(() => _followUser = true);
-                                  _mapController.move(_center, AppConstants.defaultZoom);
-                                },
-                              ),
-                              const SizedBox(height: 8),
-                              _floatButton(
-                                icon: Icons.menu,
-                                tooltip: 'Menu',
-                                onTap: _showSideMenu,
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-
-                      // Route summary shown only when a route is calculated
-                      if (navState.status == NavigationStatus.routing)
-                        _buildRouteSummaryBar(navState),
-                    ],
-                  ),
+          // ── BOTTOM overlay (speed HUD + buttons + route bar) ─────────────
+          Positioned(
+            bottom: 0, left: 0, right: 0,
+            child: SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (navState.status == NavigationStatus.routing)
+                      _buildRouteSummaryBar(navState),
+                    const SizedBox(height: 8),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        SpeedHud(speedMph: speed),
+                        const Spacer(),
+                        Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _floatButton(
+                              icon: _mapLayer == 'dark'
+                                  ? Icons.satellite_alt
+                                  : _mapLayer == 'standard'
+                                      ? Icons.dark_mode
+                                      : Icons.map,
+                              tooltip: 'Map Layer',
+                              onTap: () => setState(() {
+                                if (_mapLayer == 'dark') _mapLayer = 'standard';
+                                else if (_mapLayer == 'standard') _mapLayer = 'satellite';
+                                else _mapLayer = 'dark';
+                              }),
+                            ),
+                            const SizedBox(height: 8),
+                            _floatButton(
+                              icon: _followUser
+                                  ? Icons.my_location
+                                  : Icons.location_searching,
+                              tooltip: 'Recenter',
+                              color: _followUser ? AppTheme.primary : null,
+                              onTap: () {
+                                setState(() => _followUser = true);
+                                _mapController.move(_center, AppConstants.defaultZoom);
+                              },
+                            ),
+                            const SizedBox(height: 8),
+                            _floatButton(
+                              icon: Icons.menu,
+                              tooltip: 'Menu',
+                              onTap: _showSideMenu,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
 
