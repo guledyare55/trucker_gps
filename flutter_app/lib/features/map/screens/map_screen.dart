@@ -146,16 +146,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
             padding: const EdgeInsets.only(
                 top: 100, bottom: 250, left: 40, right: 40),
           ));
-        } catch (_) {
-          try {
-            // Deprecated fallback for older flutter_map versions
-            // ignore: deprecated_member_use
-            _mapController.fitBounds(bounds,
-                options: const FitBoundsOptions(
-                    padding: EdgeInsets.only(
-                        top: 100, bottom: 250, left: 40, right: 40)));
-          } catch (_) {}
-        }
+        } catch (_) {}
         setState(() => _followUser = false);
       }
     });
