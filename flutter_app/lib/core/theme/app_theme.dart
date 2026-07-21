@@ -40,7 +40,7 @@ class AppTheme {
         onBackground: textPrimary,
       ),
       scaffoldBackgroundColor: bg1,
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: bg2,
         elevation: 0,
         shape: RoundedRectangleBorder(

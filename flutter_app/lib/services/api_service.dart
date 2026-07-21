@@ -44,7 +44,7 @@ class ApiService {
       double south, double west, double north, double east,
       {String? types}) async {
     try {
-      final query = {
+      final Map<String, dynamic> query = {
         'south': south,
         'west': west,
         'north': north,

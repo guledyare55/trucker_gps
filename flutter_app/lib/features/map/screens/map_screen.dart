@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:trucker_gps/core/constants/app_constants.dart';
 import 'package:trucker_gps/core/theme/app_theme.dart';
@@ -19,6 +19,9 @@ import 'package:trucker_gps/features/truck_profile/screens/truck_profile_screen.
 import 'package:trucker_gps/features/weather/screens/weather_screen.dart';
 import 'package:trucker_gps/features/fuel/screens/fuel_screen.dart';
 
+// Only import permission_handler on non-web platforms
+import 'package:trucker_gps/core/platform/permissions.dart';
+
 class MapScreen extends ConsumerStatefulWidget {
   const MapScreen({Key? key}) : super(key: key);
 
@@ -29,7 +32,7 @@ class MapScreen extends ConsumerStatefulWidget {
 class _MapScreenState extends ConsumerState<MapScreen>
     with SingleTickerProviderStateMixin {
   final MapController _mapController = MapController();
-  final FlutterTts _tts = FlutterTts();
+  FlutterTts? _tts;
   LatLng _center = const LatLng(39.8283, -98.5795);
   bool _followUser = true;
   bool _mapReady = false;
@@ -44,14 +47,28 @@ class _MapScreenState extends ConsumerState<MapScreen>
   }
 
   Future<void> _initTts() async {
-    await _tts.setLanguage('en-US');
-    await _tts.setSpeechRate(0.45);
-    await _tts.setVolume(1.0);
+    try {
+      _tts = FlutterTts();
+      await _tts!.setLanguage('en-US');
+      await _tts!.setSpeechRate(0.45);
+      await _tts!.setVolume(1.0);
+    } catch (_) {
+      // TTS may not work on all platforms/browsers
+      _tts = null;
+    }
   }
 
   Future<void> _initLocation() async {
-    final status = await Permission.location.request();
-    if (!status.isGranted) return;
+    // On web, geolocator uses the browser's geolocation API directly
+    // No need for permission_handler
+    if (!kIsWeb) {
+      final granted = await AppPermissions.requestLocation();
+      if (!granted) {
+        if (mounted) setState(() => _mapReady = true);
+        return;
+      }
+    }
+
     try {
       final pos = await Geolocator.getCurrentPosition(
           desiredAccuracy: LocationAccuracy.high);
@@ -78,10 +95,13 @@ class _MapScreenState extends ConsumerState<MapScreen>
   }
 
   void _speakInstruction(String instruction) async {
+    if (_tts == null) return;
     if (instruction != _lastSpokenInstruction) {
       _lastSpokenInstruction = instruction;
-      await _tts.stop();
-      await _tts.speak(instruction);
+      try {
+        await _tts!.stop();
+        await _tts!.speak(instruction);
+      } catch (_) {}
     }
   }
 
@@ -104,15 +124,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
         } catch (_) {}
       }
 
-      // Update navigation progress
+      // Update navigation progress and speak instructions
       if (navState.status == NavigationStatus.navigating) {
         ref.read(navigationProvider.notifier).updateProgress(latLng);
-
-        // Speak current instruction
         final step = navState.currentStep;
-        if (step != null) {
-          _speakInstruction(step.instruction);
-        }
+        if (step != null) _speakInstruction(step.instruction);
       }
     });
 
@@ -120,7 +136,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
       backgroundColor: AppTheme.bg1,
       body: Stack(
         children: [
-          // ── Map ───────────────────────────────────────────────────────────
+          // ── Map ──────────────────────────────────────────────────────────
           FlutterMap(
             mapController: _mapController,
             options: MapOptions(
@@ -129,15 +145,13 @@ class _MapScreenState extends ConsumerState<MapScreen>
               minZoom: AppConstants.minZoom,
               maxZoom: AppConstants.maxZoom,
               onMapEvent: (event) {
-                // Disable follow mode if user drags map
-                if (event is MapEventScrollWheelZoom ||
-                    event is MapEventMove && event.source != MapEventSource.mapController) {
+                if (event is MapEventMove &&
+                    event.source != MapEventSource.mapController) {
                   if (_followUser) setState(() => _followUser = false);
                 }
               },
             ),
             children: [
-              // Tile layer
               TileLayer(
                 urlTemplate: _getTileUrl(),
                 userAgentPackageName: 'com.truckergps.app',
@@ -158,20 +172,19 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   ],
                 ),
 
-              // POI markers along route
+              // POI markers
               PoiMarkerLayer(pois: navState.nearbyPois),
 
-              // Current location marker
+              // Location + destination markers
               locationAsync.when(
                 data: (pos) => MarkerLayer(
                   markers: [
                     Marker(
                       point: LatLng(pos.latitude, pos.longitude),
-                      width: 56,
-                      height: 56,
+                      width: 52,
+                      height: 52,
                       child: _buildTruckMarker(),
                     ),
-                    // Destination marker
                     if (navState.activeRoute != null)
                       Marker(
                         point: navState.activeRoute!.destination,
@@ -187,15 +200,13 @@ class _MapScreenState extends ConsumerState<MapScreen>
             ],
           ),
 
-          // ── UI Overlays ────────────────────────────────────────────────────
+          // ── UI Overlays ───────────────────────────────────────────────────
           SafeArea(
             child: Column(
               children: [
-                // Turn-by-turn banner (when navigating/routing)
                 if (navState.activeRoute != null)
                   NavigationBanner(navState: navState)
                 else
-                  // Search bar when idle
                   SearchBarWidget(
                     onDestinationSelected: (dest, name) {
                       locationAsync.whenData((pos) {
@@ -210,33 +221,58 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
                 const Spacer(),
 
-                // ── Bottom HUD ─────────────────────────────────────────────
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Speed + controls row
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          // Speed HUD
                           SpeedHud(speedMph: speed),
                           const Spacer(),
-                          // Right-side control column
                           Column(
                             children: [
-                              _mapLayerButton(),
+                              _floatButton(
+                                icon: _mapLayer == 'dark'
+                                    ? Icons.satellite_alt
+                                    : _mapLayer == 'standard'
+                                        ? Icons.dark_mode
+                                        : Icons.map,
+                                tooltip: 'Map Layer',
+                                onTap: () => setState(() {
+                                  if (_mapLayer == 'dark') _mapLayer = 'standard';
+                                  else if (_mapLayer == 'standard') _mapLayer = 'satellite';
+                                  else _mapLayer = 'dark';
+                                }),
+                              ),
                               const SizedBox(height: 10),
-                              _recenterButton(),
+                              _floatButton(
+                                icon: _followUser
+                                    ? Icons.my_location
+                                    : Icons.location_searching,
+                                tooltip: 'Recenter',
+                                color: _followUser ? AppTheme.primary : null,
+                                onTap: () {
+                                  setState(() => _followUser = true);
+                                  final pos = ref.read(currentLatLngProvider);
+                                  if (pos != null) {
+                                    _mapController.move(
+                                        pos, AppConstants.defaultZoom);
+                                  }
+                                },
+                              ),
                               const SizedBox(height: 10),
-                              _menuButton(),
+                              _floatButton(
+                                icon: Icons.menu,
+                                tooltip: 'Menu',
+                                onTap: _showSideMenu,
+                              ),
                             ],
                           ),
                         ],
                       ),
 
-                      // Route summary bar (when route is calculated but not navigating)
                       if (navState.status == NavigationStatus.routing)
                         _buildRouteSummaryBar(navState),
                     ],
@@ -262,92 +298,75 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 ),
               ),
             ),
+
+          // Error snackbar-style
+          if (navState.error != null)
+            Positioned(
+              bottom: 100,
+              left: 16,
+              right: 16,
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppTheme.danger.withOpacity(0.9),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.error_outline,
+                        color: Colors.white, size: 20),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(navState.error!,
+                          style: const TextStyle(color: Colors.white, fontSize: 13)),
+                    ),
+                    GestureDetector(
+                      onTap: () =>
+                          ref.read(navigationProvider.notifier).cancelNavigation(),
+                      child: const Icon(Icons.close,
+                          color: Colors.white70, size: 18),
+                    ),
+                  ],
+                ),
+              ),
+            ),
         ],
       ),
     );
   }
 
-  Widget _buildTruckMarker() {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppTheme.primary,
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.primary.withOpacity(0.5),
-            blurRadius: 16,
-            spreadRadius: 4,
-          ),
-        ],
-      ),
-      child: const Icon(Icons.local_shipping, color: Colors.black, size: 28),
-    );
-  }
+  Widget _buildTruckMarker() => Container(
+        decoration: BoxDecoration(
+          color: AppTheme.primary,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+                color: AppTheme.primary.withOpacity(0.5),
+                blurRadius: 16,
+                spreadRadius: 4)
+          ],
+        ),
+        child:
+            const Icon(Icons.local_shipping, color: Colors.black, size: 26),
+      );
 
-  Widget _buildDestMarker() {
-    return Container(
-      decoration: const BoxDecoration(
-        color: AppTheme.accent,
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: Color(0x80FF6B35),
-            blurRadius: 12,
-            spreadRadius: 3,
-          ),
-        ],
-      ),
-      child: const Icon(Icons.flag, color: Colors.white, size: 24),
-    );
-  }
+  Widget _buildDestMarker() => Container(
+        decoration: const BoxDecoration(
+          color: AppTheme.accent,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+                color: Color(0x80FF6B35), blurRadius: 12, spreadRadius: 3)
+          ],
+        ),
+        child: const Icon(Icons.flag, color: Colors.white, size: 22),
+      );
 
-  Widget _mapLayerButton() {
-    return _floatButton(
-      icon: _mapLayer == 'satellite'
-          ? Icons.map
-          : _mapLayer == 'dark'
-              ? Icons.satellite_alt
-              : Icons.dark_mode,
-      tooltip: 'Map Layer',
-      onTap: () {
-        setState(() {
-          if (_mapLayer == 'dark') _mapLayer = 'standard';
-          else if (_mapLayer == 'standard') _mapLayer = 'satellite';
-          else _mapLayer = 'dark';
-        });
-      },
-    );
-  }
-
-  Widget _recenterButton() {
-    return _floatButton(
-      icon: _followUser ? Icons.my_location : Icons.location_searching,
-      tooltip: 'Recenter',
-      color: _followUser ? AppTheme.primary : null,
-      onTap: () {
-        setState(() => _followUser = true);
-        final pos = ref.read(currentLatLngProvider);
-        if (pos != null) {
-          _mapController.move(pos, AppConstants.defaultZoom);
-        }
-      },
-    );
-  }
-
-  Widget _menuButton() {
-    return _floatButton(
-      icon: Icons.menu,
-      tooltip: 'Menu',
-      onTap: () => _showSideMenu(),
-    );
-  }
-
-  Widget _floatButton({
-    required IconData icon,
-    required String tooltip,
-    required VoidCallback onTap,
-    Color? color,
-  }) {
+  Widget _floatButton(
+      {required IconData icon,
+      required String tooltip,
+      required VoidCallback onTap,
+      Color? color}) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -358,18 +377,18 @@ class _MapScreenState extends ConsumerState<MapScreen>
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: const Color(0xFF252535)),
           boxShadow: const [
-            BoxShadow(color: Colors.black38, blurRadius: 8, offset: Offset(0, 2))
+            BoxShadow(
+                color: Colors.black38, blurRadius: 8, offset: Offset(0, 2))
           ],
         ),
-        child: Icon(icon, color: color ?? AppTheme.textSecondary, size: 22),
+        child:
+            Icon(icon, color: color ?? AppTheme.textSecondary, size: 22),
       ),
     );
   }
 
   Widget _buildRouteSummaryBar(NavigationState navState) {
-    if (navState.activeRoute == null) return const SizedBox.shrink();
     final route = navState.activeRoute!;
-
     return Container(
       margin: const EdgeInsets.only(top: 12),
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
@@ -380,11 +399,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
       ),
       child: Row(
         children: [
-          _summaryChip(Icons.straighten, '${route.distanceMiles.toStringAsFixed(1)} mi'),
+          _chip(Icons.straighten, '${route.distanceMiles.toStringAsFixed(1)} mi'),
           const SizedBox(width: 16),
-          _summaryChip(Icons.access_time, route.durationFormatted),
+          _chip(Icons.access_time, route.durationFormatted),
           const SizedBox(width: 16),
-          _summaryChip(Icons.place, '${navState.nearbyPois.length} stops'),
+          _chip(Icons.place, '${navState.nearbyPois.length} stops'),
           const Spacer(),
           ElevatedButton.icon(
             onPressed: () {
@@ -396,20 +415,23 @@ class _MapScreenState extends ConsumerState<MapScreen>
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.primary,
               foregroundColor: Colors.black,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
             ),
           ),
           const SizedBox(width: 8),
           GestureDetector(
-            onTap: () => ref.read(navigationProvider.notifier).cancelNavigation(),
+            onTap: () =>
+                ref.read(navigationProvider.notifier).cancelNavigation(),
             child: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: AppTheme.bg4,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(Icons.close, color: AppTheme.textSecondary, size: 20),
+                  color: AppTheme.bg4,
+                  borderRadius: BorderRadius.circular(10)),
+              child: const Icon(Icons.close,
+                  color: AppTheme.textSecondary, size: 20),
             ),
           ),
         ],
@@ -417,41 +439,35 @@ class _MapScreenState extends ConsumerState<MapScreen>
     );
   }
 
-  Widget _summaryChip(IconData icon, String label) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 14, color: AppTheme.primary),
-        const SizedBox(width: 4),
-        Text(label,
-            style: const TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-            )),
-      ],
-    );
-  }
+  Widget _chip(IconData icon, String label) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: AppTheme.primary),
+          const SizedBox(width: 4),
+          Text(label,
+              style: const TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600)),
+        ],
+      );
 
   void _showSideMenu() {
     showModalBottomSheet(
       context: context,
       backgroundColor: AppTheme.bg2,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) => _SideMenuSheet(),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (_) => _SideMenuSheet(),
     );
   }
 
   @override
   void dispose() {
-    _tts.stop();
+    _tts?.stop();
     super.dispose();
   }
 }
-
-// ── Side menu sheet ────────────────────────────────────────────────────────────
 
 class _SideMenuSheet extends ConsumerWidget {
   @override
@@ -466,39 +482,40 @@ class _SideMenuSheet extends ConsumerWidget {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: AppTheme.textMuted,
-                borderRadius: BorderRadius.circular(2),
-              ),
+                  color: AppTheme.textMuted,
+                  borderRadius: BorderRadius.circular(2)),
             ),
             const SizedBox(height: 16),
-            Text(
-              'TruckerGPS',
-              style: TextStyle(
-                color: AppTheme.primary,
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
+            const Text('TruckerGPS',
+                style: TextStyle(
+                    color: AppTheme.primary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700)),
             const SizedBox(height: 16),
-            _menuItem(context, Icons.person_outline, 'Truck Profile',
+            _item(context, Icons.person_outline, 'Truck Profile',
                 'Height, weight & restrictions', () {
               Navigator.pop(context);
-              Navigator.push(context, MaterialPageRoute(
-                  builder: (_) => const TruckProfileScreen()));
+              Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const TruckProfileScreen()));
             }),
-            _menuItem(context, Icons.description_outlined, 'HOS Logbook',
+            _item(context, Icons.description_outlined, 'HOS Logbook',
                 'Hours of service & ELD', () {
               Navigator.pop(context);
-              Navigator.push(context, MaterialPageRoute(
-                  builder: (_) => const HosLogbookScreen(userId: 'driver_001')));
+              Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) =>
+                          const HosLogbookScreen(userId: 'driver_001')));
             }),
-            _menuItem(context, Icons.local_gas_station_outlined, 'Fuel Prices',
+            _item(context, Icons.local_gas_station_outlined, 'Fuel Prices',
                 'Diesel prices near you', () {
               Navigator.pop(context);
               Navigator.push(context,
                   MaterialPageRoute(builder: (_) => const FuelScreen()));
             }),
-            _menuItem(context, Icons.cloud_outlined, 'Weather',
+            _item(context, Icons.cloud_outlined, 'Weather',
                 'Road weather & alerts', () {
               Navigator.pop(context);
               Navigator.push(context,
@@ -511,15 +528,14 @@ class _SideMenuSheet extends ConsumerWidget {
     );
   }
 
-  Widget _menuItem(BuildContext ctx, IconData icon, String title, String subtitle, VoidCallback onTap) {
+  Widget _item(BuildContext ctx, IconData icon, String title, String subtitle,
+      VoidCallback onTap) {
     return ListTile(
       onTap: onTap,
       leading: Container(
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: AppTheme.bg3,
-          borderRadius: BorderRadius.circular(12),
-        ),
+            color: AppTheme.bg3, borderRadius: BorderRadius.circular(12)),
         child: Icon(icon, color: AppTheme.primary, size: 22),
       ),
       title: Text(title,
@@ -528,7 +544,8 @@ class _SideMenuSheet extends ConsumerWidget {
       subtitle: Text(subtitle,
           style: const TextStyle(color: AppTheme.textMuted, fontSize: 12)),
       trailing: const Icon(Icons.chevron_right, color: AppTheme.textMuted),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     );
   }
 }

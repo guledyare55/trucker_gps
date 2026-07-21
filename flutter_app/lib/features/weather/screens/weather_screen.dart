@@ -225,7 +225,7 @@ class _WeatherContent extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         children: [
-          Text(h['time'] ?? '', style: const TextStyle(color: AppTheme.textMuted, fontSize: 13, width: 1)),
+          Text(h['time'] ?? '', style: const TextStyle(color: AppTheme.textMuted, fontSize: 13)),
           const SizedBox(width: 16),
           const Icon(Icons.wb_sunny_outlined, color: AppTheme.warning, size: 18),
           const SizedBox(width: 8),
