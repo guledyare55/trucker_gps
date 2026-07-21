@@ -24,9 +24,9 @@ class AppConstants {
   // Standard daytime map (OpenStreetMap)
   static const String osmTileUrl = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
   static const String osmStandardTileUrl = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-  // Professional dark map — Esri Dark Gray Canvas (same CDN as satellite, no API key needed)
+  // Professional dark map — CartoDB Dark Matter, single server, no API key needed
   static const String osmDarkTileUrl =
-      'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}';
+      'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png';
   // Satellite imagery — Esri World Imagery
   static const String osmSatelliteUrl =
       'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
