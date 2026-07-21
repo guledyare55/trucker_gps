@@ -86,11 +86,26 @@ class _MapScreenState extends ConsumerState<MapScreen>
   }
 
   String _getTileUrl() {
-    if (_mapLayer == 'satellite') {
-      return AppConstants.osmSatelliteUrl;
+    switch (_mapLayer) {
+      case 'satellite':
+        return AppConstants.osmSatelliteUrl;
+      case 'standard':
+        return AppConstants.osmStandardTileUrl;
+      case 'dark':
+      default:
+        return AppConstants.osmDarkTileUrl;
     }
-    return AppConstants
-        .osmTileUrl; // Use standard OSM for both standard and dark (we'll filter dark)
+  }
+
+  List<String>? _getSubdomains() {
+    switch (_mapLayer) {
+      case 'dark':
+        return ['a', 'b', 'c', 'd'];
+      case 'standard':
+        return ['a', 'b', 'c'];
+      default:
+        return null;
+    }
   }
 
   void _speakInstruction(String instruction) async {
@@ -177,49 +192,28 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 urlTemplate: _getTileUrl(),
                 userAgentPackageName: 'com.truckergps.app',
                 retinaMode: MediaQuery.of(context).devicePixelRatio > 1.0,
-                panBuffer: 1,
-                keepBuffer: 3,
-                tileBuilder: _mapLayer == 'dark'
-                    ? (context, tileWidget, tile) {
-                        return ColorFiltered(
-                          colorFilter: const ColorFilter.matrix([
-                            -1,
-                            0,
-                            0,
-                            0,
-                            255,
-                            0,
-                            -1,
-                            0,
-                            0,
-                            255,
-                            0,
-                            0,
-                            -1,
-                            0,
-                            255,
-                            0,
-                            0,
-                            0,
-                            1,
-                            0,
-                          ]),
-                          child: tileWidget,
-                        );
-                      }
-                    : null,
+                subdomains: _getSubdomains() ?? const ['a', 'b', 'c'],
+                panBuffer: 2,
+                keepBuffer: 5,
+                maxNativeZoom: 19,
+                // No tileBuilder filter needed — CartoDB/ArcGIS tiles are pre-styled
               ),
 
               // Route polyline
               if (navState.activeRoute != null)
                 PolylineLayer(
                   polylines: [
+                    // Outer glow / casing
                     Polyline(
                       points: navState.activeRoute!.polyline,
-                      color: AppTheme.primary.withOpacity(0.85),
+                      color: AppTheme.primaryDark.withValues(alpha: 0.6),
+                      strokeWidth: 11.0,
+                    ),
+                    // Main route line
+                    Polyline(
+                      points: navState.activeRoute!.polyline,
+                      color: AppTheme.primary,
                       strokeWidth: 7.0,
-                      borderColor: AppTheme.primaryDark,
-                      borderStrokeWidth: 1.0,
                     ),
                   ],
                 ),
