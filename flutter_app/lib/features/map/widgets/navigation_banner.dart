@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:trucker_gps/core/theme/app_theme.dart';
 import 'package:trucker_gps/providers/navigation_provider.dart';
+import 'package:trucker_gps/features/map/widgets/lane_guidance_widget.dart';
 
 /// Displays the current turn instruction at the top of the screen during navigation.
 class NavigationBanner extends StatelessWidget {
   final NavigationState navState;
+  final VoidCallback onCancel;
 
-  const NavigationBanner({super.key, required this.navState});
+  const NavigationBanner({super.key, required this.navState, required this.onCancel});
 
   @override
   Widget build(BuildContext context) {
@@ -22,94 +24,92 @@ class NavigationBanner extends StatelessWidget {
     }
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-      decoration: BoxDecoration(
-        color: AppTheme.panelBg,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFF252535)),
-        boxShadow: const [
-          BoxShadow(color: Colors.black54, blurRadius: 16, offset: Offset(0, 4))
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Main instruction row
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                // Direction icon
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppTheme.primary.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Icon(
-                    _directionIcon(step!.type),
-                    color: AppTheme.primary,
-                    size: 32,
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Distance to maneuver
-                      if (navState.distanceToNextStepMeters != null)
-                        Text(
-                          _formatDistance(navState.distanceToNextStepMeters!),
-                          style: const TextStyle(
-                            color: AppTheme.primary,
-                            fontSize: 22,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      Text(
-                        step.instruction,
-                        style: const TextStyle(
-                          color: AppTheme.textPrimary,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Next step preview
-          if (nextStep != null)
-            Container(
+      width: double.infinity,
+      color: const Color(0xFF003833),
+      child: SafeArea(
+        bottom: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-              decoration: BoxDecoration(
-                color: AppTheme.bg4.withOpacity(0.7),
-                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(18)),
-              ),
               child: Row(
                 children: [
-                  Icon(_directionIcon(nextStep.type),
-                      color: AppTheme.textMuted, size: 16),
-                  const SizedBox(width: 8),
+                  // Turn arrow
+                  Icon(
+                    _directionIcon(step!.type),
+                    color: Colors.white,
+                    size: 56,
+                  ),
+                  const SizedBox(width: 16),
+                  // Distance & Street
                   Expanded(
-                    child: Text(
-                      'Then: ${nextStep.instruction}',
-                      style: const TextStyle(
-                          color: AppTheme.textMuted, fontSize: 12),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (navState.distanceToNextStepMeters != null)
+                          Text(
+                            _formatDistance(navState.distanceToNextStepMeters!),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 30,
+                              fontWeight: FontWeight.w800,
+                              height: 1,
+                            ),
+                          ),
+                        const SizedBox(height: 2),
+                        Text(
+                          step.instruction,
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
             ),
-        ],
+            // Next maneuver (if applicable)
+            if (nextStep != null)
+              Container(
+                width: double.infinity,
+                color: const Color(0xFF002B27),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                child: Row(
+                  children: [
+                    Icon(
+                      _directionIcon(nextStep.type),
+                      color: Colors.white60,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Then: ${nextStep.instruction}',
+                        style: const TextStyle(color: Colors.white60, fontSize: 15),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            // Lane Guidance
+            if (step.lanes.isNotEmpty)
+              Container(
+                width: double.infinity,
+                color: const Color(0xFF002B27),
+                padding: const EdgeInsets.only(bottom: 12),
+                child: LaneGuidanceWidget(lanes: step.lanes),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -124,16 +124,23 @@ class NavigationBanner extends StatelessWidget {
         border: Border.all(color: AppTheme.success.withOpacity(0.5)),
       ),
       child: Row(
-        children: const [
-          Icon(Icons.check_circle, color: AppTheme.success, size: 36),
-          SizedBox(width: 14),
-          Text(
-            'You have arrived!',
-            style: TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
+        children: [
+          const Icon(Icons.check_circle, color: AppTheme.success, size: 36),
+          const SizedBox(width: 14),
+          const Expanded(
+            child: Text(
+              'You have arrived!',
+              style: TextStyle(
+                color: AppTheme.textPrimary,
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+              ),
             ),
+          ),
+          IconButton(
+            onPressed: onCancel,
+            icon: const Icon(Icons.close, color: AppTheme.textPrimary),
+            tooltip: 'Clear Route',
           ),
         ],
       ),

@@ -45,119 +45,162 @@ class _SettingsSheet extends ConsumerWidget {
           ),
           const SizedBox(height: 20),
 
-          // ── Title ───────────────────────────────────────────────────────
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 24),
-            child: Row(
-              children: [
-                Icon(Icons.tune_rounded, color: AppTheme.primary, size: 22),
-                SizedBox(width: 10),
-                Text(
-                  'Settings',
-                  style: TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.5,
+          // ── Scrollable content ──────────────────────────────────────────
+          Flexible(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).padding.bottom + 20,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // ── Title ───────────────────────────────────────────────
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 24),
+                    child: Row(
+                      children: [
+                        Icon(Icons.tune_rounded, color: AppTheme.primary, size: 22),
+                        SizedBox(width: 10),
+                        Text(
+                          'Settings',
+                          style: TextStyle(
+                            color: AppTheme.textPrimary,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 24),
+
+                  // ── Vehicle Selector ────────────────────────────────────
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'VEHICLE TYPE',
+                          style: TextStyle(
+                            color: AppTheme.textMuted,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        _VehicleSelector(
+                          selected: settings.vehicleType,
+                          onSelect: notifier.setVehicleType,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // ── Appearance ──────────────────────────────────────────
+                  const _SectionHeader('APPEARANCE'),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'MAP THEME',
+                          style: TextStyle(
+                            color: AppTheme.textMuted,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        _ThemeSelector(
+                          selected: settings.mapThemeMode,
+                          onSelect: notifier.setMapThemeMode,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
+                  // ── Routing Preferences ─────────────────────────────────
+                  const _SectionHeader('ROUTING'),
+                  _ToggleTile(
+                    icon: Icons.toll_outlined,
+                    label: 'Avoid Tolls',
+                    subtitle: 'Take toll-free roads when possible',
+                    value: settings.avoidTolls,
+                    onChanged: notifier.setAvoidTolls,
+                  ),
+                  _ToggleTile(
+                    icon: Icons.alt_route_outlined,
+                    label: 'Avoid Highways',
+                    subtitle: 'Prefer local roads over freeways',
+                    value: settings.avoidHighways,
+                    onChanged: notifier.setAvoidHighways,
+                  ),
+
+                  // ── Navigation Preferences ──────────────────────────────
+                  const _SectionHeader('NAVIGATION'),
+                  _ToggleTile(
+                    icon: Icons.volume_up_outlined,
+                    label: 'Voice Navigation',
+                    subtitle: 'Spoken turn-by-turn instructions',
+                    value: settings.voiceEnabled,
+                    onChanged: notifier.setVoiceEnabled,
+                  ),
+                  _ToggleTile(
+                    icon: Icons.speed_outlined,
+                    label: 'Speed Alerts',
+                    subtitle: 'Warn when approaching speed limit',
+                    value: settings.speedWarnings,
+                    onChanged: notifier.setSpeedWarnings,
+                  ),
+                  _ToggleTile(
+                    icon: Icons.speed,
+                    label: 'Speed Display',
+                    subtitle: 'Show vehicle speed and speed limit sign',
+                    value: settings.showSpeedHud,
+                    onChanged: notifier.setShowSpeedHud,
+                  ),
+
+                  // ── Tools & Features ────────────────────────────────────
+                  const SizedBox(height: 8),
+                  const _SectionHeader('FEATURES'),
+                  _NavTile(
+                    icon: Icons.person_outline,
+                    label: 'Truck Profile',
+                    subtitle: 'Height, weight & restrictions',
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => const TruckProfileScreen()));
+                    },
+                  ),
+                  _NavTile(
+                    icon: Icons.local_gas_station_outlined,
+                    label: 'Fuel Prices',
+                    subtitle: 'Diesel prices near you',
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => const FuelScreen()));
+                    },
+                  ),
+                  _NavTile(
+                    icon: Icons.cloud_outlined,
+                    label: 'Weather',
+                    subtitle: 'Road weather & alerts',
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => const WeatherScreen()));
+                    },
+                  ),
+                ],
+              ),
             ),
           ),
-          const SizedBox(height: 24),
-
-          // ── Vehicle Selector ────────────────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'VEHICLE TYPE',
-                  style: TextStyle(
-                    color: AppTheme.textMuted,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 1.2,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                _VehicleSelector(
-                  selected: settings.vehicleType,
-                  onSelect: notifier.setVehicleType,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // ── Routing Preferences ─────────────────────────────────────────
-          const _SectionHeader('ROUTING'),
-          _ToggleTile(
-            icon: Icons.toll_outlined,
-            label: 'Avoid Tolls',
-            subtitle: 'Take toll-free roads when possible',
-            value: settings.avoidTolls,
-            onChanged: notifier.setAvoidTolls,
-          ),
-          _ToggleTile(
-            icon: Icons.alt_route_outlined,
-            label: 'Avoid Highways',
-            subtitle: 'Prefer local roads over freeways',
-            value: settings.avoidHighways,
-            onChanged: notifier.setAvoidHighways,
-          ),
-
-          // ── Navigation Preferences ──────────────────────────────────────
-          const _SectionHeader('NAVIGATION'),
-          _ToggleTile(
-            icon: Icons.volume_up_outlined,
-            label: 'Voice Navigation',
-            subtitle: 'Spoken turn-by-turn instructions',
-            value: settings.voiceEnabled,
-            onChanged: notifier.setVoiceEnabled,
-          ),
-          _ToggleTile(
-            icon: Icons.speed_outlined,
-            label: 'Speed Alerts',
-            subtitle: 'Warn when approaching speed limit',
-            value: settings.speedWarnings,
-            onChanged: notifier.setSpeedWarnings,
-          ),
-
-          // ── Tools & Features ────────────────────────────────────────────
-          const SizedBox(height: 8),
-          const _SectionHeader('FEATURES'),
-          _NavTile(
-            icon: Icons.person_outline,
-            label: 'Truck Profile',
-            subtitle: 'Height, weight & restrictions',
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const TruckProfileScreen()));
-            },
-          ),
-          _NavTile(
-            icon: Icons.local_gas_station_outlined,
-            label: 'Fuel Prices',
-            subtitle: 'Diesel prices near you',
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const FuelScreen()));
-            },
-          ),
-          _NavTile(
-            icon: Icons.cloud_outlined,
-            label: 'Weather',
-            subtitle: 'Road weather & alerts',
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const WeatherScreen()));
-            },
-          ),
-
-          // Bottom safe area
-          SizedBox(height: MediaQuery.of(context).padding.bottom + 20),
         ],
       ),
     );
@@ -391,3 +434,64 @@ class _NavTile extends StatelessWidget {
   }
 }
 
+class _ThemeSelector extends StatelessWidget {
+  final MapThemeMode selected;
+  final ValueChanged<MapThemeMode> onSelect;
+
+  const _ThemeSelector({required this.selected, required this.onSelect});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF1B1B25),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF252535)),
+      ),
+      padding: const EdgeInsets.all(4),
+      child: Row(
+        children: [
+          _buildOption(MapThemeMode.light, Icons.light_mode, 'Light'),
+          _buildOption(MapThemeMode.dark, Icons.dark_mode, 'Dark'),
+          _buildOption(MapThemeMode.system, Icons.settings_system_daydream, 'System'),
+          _buildOption(MapThemeMode.auto, Icons.brightness_auto, 'Auto'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOption(MapThemeMode mode, IconData icon, String label) {
+    final isSelected = selected == mode;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => onSelect(mode),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: isSelected ? AppTheme.primary.withOpacity(0.15) : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            children: [
+              Icon(
+                icon,
+                color: isSelected ? AppTheme.primary : AppTheme.textMuted,
+                size: 20,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  color: isSelected ? AppTheme.primary : AppTheme.textMuted,
+                  fontSize: 12,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

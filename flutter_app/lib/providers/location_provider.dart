@@ -5,8 +5,8 @@ import 'package:latlong2/latlong.dart';
 // Provides a continuous stream of the user's location
 final locationStreamProvider = StreamProvider<Position>((ref) {
   const locationSettings = LocationSettings(
-    accuracy: LocationAccuracy.high,
-    distanceFilter: 10, // Updates every 10 meters of movement
+    accuracy: LocationAccuracy.bestForNavigation,
+    distanceFilter: 5, // 5m balance: real-time feel without flooding the main thread
   );
 
   return Geolocator.getPositionStream(locationSettings: locationSettings);

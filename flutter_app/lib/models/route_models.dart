@@ -1,6 +1,14 @@
 import 'package:flutter/foundation.dart';
 import 'package:latlong2/latlong.dart';
 
+/// Represents a single lane at a maneuver intersection.
+class LaneInfo {
+  final List<String> indications; // e.g. ['left'], ['straight', 'right']
+  final bool isValid; // True if this lane is on the correct path
+
+  const LaneInfo({required this.indications, required this.isValid});
+}
+
 /// Represents a decoded routing step for turn-by-turn navigation
 class RouteStep {
   final String instruction;
@@ -9,6 +17,9 @@ class RouteStep {
   final String type;       // 'left', 'right', 'straight', 'roundabout', etc.
   final int? exitNumber;
   final LatLng location;
+  final List<LaneInfo> lanes; // Lane guidance data, may be empty
+  final String roadName;      // Human-readable road name e.g. "Interstate 24"
+  final String roadRef;       // OSM ref tag e.g. "I 24" or "US 64"
 
   const RouteStep({
     required this.instruction,
@@ -17,6 +28,9 @@ class RouteStep {
     required this.type,
     this.exitNumber,
     required this.location,
+    this.lanes = const [],
+    this.roadName = '',
+    this.roadRef = '',
   });
 
   String get distanceMiles => '${(distanceMeters / 1609.34).toStringAsFixed(1)} mi';

@@ -49,6 +49,16 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
     state = state.copyWith(speedWarnings: value);
     await _save();
   }
+
+  Future<void> setMapThemeMode(MapThemeMode mode) async {
+    state = state.copyWith(mapThemeMode: mode);
+    await _save();
+  }
+
+  Future<void> setShowSpeedHud(bool value) async {
+    state = state.copyWith(showSpeedHud: value);
+    await _save();
+  }
 }
 
 final settingsProvider = StateNotifierProvider<SettingsNotifier, AppSettings>((ref) {

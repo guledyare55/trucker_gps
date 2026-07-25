@@ -6,12 +6,12 @@ import 'package:dio/dio.dart';
 /// Destination search bar — always full width, no jittery animations.
 class SearchBarWidget extends StatefulWidget {
   final void Function(LatLng destination, String name) onDestinationSelected;
-  final void Function(String category)? onFilterSelected;
+  final void Function(List<String> categories)? onFiltersChanged;
 
   const SearchBarWidget({
     super.key,
     required this.onDestinationSelected,
-    this.onFilterSelected,
+    this.onFiltersChanged,
   });
 
   @override
@@ -25,6 +25,7 @@ class _SearchBarWidgetState extends State<SearchBarWidget>
   final Dio _dio = Dio();
 
   List<Map<String, dynamic>> _suggestions = [];
+  final Set<String> _activeFilters = {};
   bool _isSearching = false;
   bool _hasFocus = false;
 
@@ -66,6 +67,17 @@ class _SearchBarWidgetState extends State<SearchBarWidget>
     setState(() {
       _suggestions = [];
     });
+  }
+
+  void _toggleFilter(String category) {
+    setState(() {
+      if (_activeFilters.contains(category)) {
+        _activeFilters.remove(category);
+      } else {
+        _activeFilters.add(category);
+      }
+    });
+    widget.onFiltersChanged?.call(_activeFilters.toList());
   }
 
   Future<void> _search(String query) async {
@@ -261,44 +273,28 @@ class _SearchBarWidgetState extends State<SearchBarWidget>
                 child: Row(
                   children: [
                     _QuickFilterChip(
-                      icon: Icons.local_gas_station_rounded,
-                      label: 'Fuel',
-                      onTap: () {
-                        widget.onFilterSelected?.call('Fuel');
-                        _clear();
-                      },
+                      icon: Icons.local_parking_rounded, // or maybe local_shipping
+                      label: 'Truck Stop',
+                      isActive: _activeFilters.contains('Truck Stop'),
+                      onTap: () => _toggleFilter('Truck Stop'),
                     ),
                     _QuickFilterChip(
-                      icon: Icons.local_parking_rounded,
-                      label: 'Parking',
-                      onTap: () {
-                        widget.onFilterSelected?.call('Parking');
-                        _clear();
-                      },
+                      icon: Icons.local_gas_station_rounded,
+                      label: 'Fuel',
+                      isActive: _activeFilters.contains('Fuel'),
+                      onTap: () => _toggleFilter('Fuel'),
                     ),
                     _QuickFilterChip(
                       icon: Icons.monitor_weight_rounded,
                       label: 'Weigh Station',
-                      onTap: () {
-                        widget.onFilterSelected?.call('Weigh Station');
-                        _clear();
-                      },
+                      isActive: _activeFilters.contains('Weigh Station'),
+                      onTap: () => _toggleFilter('Weigh Station'),
                     ),
                     _QuickFilterChip(
                       icon: Icons.fastfood_rounded,
                       label: 'Food',
-                      onTap: () {
-                        widget.onFilterSelected?.call('Food');
-                        _clear();
-                      },
-                    ),
-                    _QuickFilterChip(
-                      icon: Icons.park_rounded,
-                      label: 'Rest Area',
-                      onTap: () {
-                        widget.onFilterSelected?.call('Rest Area');
-                        _clear();
-                      },
+                      isActive: _activeFilters.contains('Food'),
+                      onTap: () => _toggleFilter('Food'),
                     ),
                   ],
                 ),
@@ -315,11 +311,13 @@ class _SearchBarWidgetState extends State<SearchBarWidget>
 class _QuickFilterChip extends StatelessWidget {
   final IconData icon;
   final String label;
+  final bool isActive;
   final VoidCallback onTap;
 
   const _QuickFilterChip({
     required this.icon,
     required this.label,
+    this.isActive = false,
     required this.onTap,
   });
 
@@ -331,28 +329,35 @@ class _QuickFilterChip extends StatelessWidget {
         margin: const EdgeInsets.only(right: 8),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: AppTheme.panelBg,
+          color: isActive ? AppTheme.primary.withOpacity(0.15) : AppTheme.panelBg,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0xFF252535)),
-          boxShadow: const [
-            BoxShadow(
-              color: Colors.black26,
-              blurRadius: 4,
-              offset: Offset(0, 2),
-            ),
+          border: Border.all(color: isActive ? AppTheme.primary : const Color(0xFF252535)),
+          boxShadow: [
+            if (isActive)
+              BoxShadow(
+                color: AppTheme.primary.withOpacity(0.2),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              )
+            else
+              const BoxShadow(
+                color: Colors.black26,
+                blurRadius: 4,
+                offset: Offset(0, 2),
+              ),
           ],
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: AppTheme.primary, size: 16),
+            Icon(icon, color: isActive ? AppTheme.primary : AppTheme.textMuted, size: 16),
             const SizedBox(width: 6),
             Text(
               label,
-              style: const TextStyle(
-                color: AppTheme.textPrimary,
+              style: TextStyle(
+                color: isActive ? AppTheme.primary : AppTheme.textPrimary,
                 fontSize: 13,
-                fontWeight: FontWeight.w500,
+                fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
               ),
             ),
           ],

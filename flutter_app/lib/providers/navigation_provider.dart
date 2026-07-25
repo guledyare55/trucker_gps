@@ -15,20 +15,36 @@ class NavigationState {
   final TruckRoute? activeRoute;
   final int currentStepIndex;
   final double? distanceToNextStepMeters;
+  final double? remainingDistanceMeters;   // live remaining trip distance
+  final double? remainingDurationSeconds;  // live remaining trip time
+  final String currentRoadName;            // e.g. "I-24" or "Main Street"
+  final String currentRoadRef;             // raw OSM ref e.g. "I 24", "US 64"
   final PoiPoint? selectedPoi;
   final List<PoiPoint> nearbyPois;
   final String? error;
   final bool isLoading;
+  
+  // Routing preferences (saved for recalculation)
+  final String? destinationName;
+  final bool avoidTolls;
+  final bool avoidHighways;
 
   const NavigationState({
     this.status = NavigationStatus.idle,
     this.activeRoute,
     this.currentStepIndex = 0,
     this.distanceToNextStepMeters,
+    this.remainingDistanceMeters,
+    this.remainingDurationSeconds,
+    this.currentRoadName = '',
+    this.currentRoadRef = '',
     this.selectedPoi,
     this.nearbyPois = const [],
     this.error,
     this.isLoading = false,
+    this.destinationName,
+    this.avoidTolls = false,
+    this.avoidHighways = false,
   });
 
   RouteStep? get currentStep =>
@@ -47,6 +63,10 @@ class NavigationState {
     TruckRoute? activeRoute,
     int? currentStepIndex,
     double? distanceToNextStepMeters,
+    double? remainingDistanceMeters,
+    double? remainingDurationSeconds,
+    String? currentRoadName,
+    String? currentRoadRef,
     PoiPoint? selectedPoi,
     List<PoiPoint>? nearbyPois,
     String? error,
@@ -54,6 +74,9 @@ class NavigationState {
     bool clearRoute = false,
     bool clearError = false,
     bool clearPoi = false,
+    String? destinationName,
+    bool? avoidTolls,
+    bool? avoidHighways,
   }) {
     return NavigationState(
       status: status ?? this.status,
@@ -61,10 +84,17 @@ class NavigationState {
       currentStepIndex: currentStepIndex ?? this.currentStepIndex,
       distanceToNextStepMeters:
           distanceToNextStepMeters ?? this.distanceToNextStepMeters,
+      remainingDistanceMeters: remainingDistanceMeters ?? this.remainingDistanceMeters,
+      remainingDurationSeconds: remainingDurationSeconds ?? this.remainingDurationSeconds,
+      currentRoadName: currentRoadName ?? this.currentRoadName,
+      currentRoadRef: currentRoadRef ?? this.currentRoadRef,
       selectedPoi: clearPoi ? null : (selectedPoi ?? this.selectedPoi),
       nearbyPois: nearbyPois ?? this.nearbyPois,
       error: clearError ? null : (error ?? this.error),
       isLoading: isLoading ?? this.isLoading,
+      destinationName: destinationName ?? this.destinationName,
+      avoidTolls: avoidTolls ?? this.avoidTolls,
+      avoidHighways: avoidHighways ?? this.avoidHighways,
     );
   }
 }
@@ -78,6 +108,12 @@ class NavigationNotifier extends StateNotifier<NavigationState> {
   ));
 
   TruckProfile _truckProfile;
+  DateTime _lastProgressUpdate = DateTime.fromMillisecondsSinceEpoch(0);
+  DateTime _lastRecalculation = DateTime.fromMillisecondsSinceEpoch(0);
+  
+  final Set<String> _announcedPoiIds = {};
+  void Function(String)? onVoiceAlert;
+
   NavigationNotifier(this._truckProfile) : super(const NavigationState());
 
   TruckProfile get truckProfile => _truckProfile;
@@ -94,6 +130,7 @@ class NavigationNotifier extends StateNotifier<NavigationState> {
     String? destinationName,
     bool avoidTolls = false,
     bool avoidHighways = false,
+    bool isAutoReroute = false,
   }) async {
     state = state.copyWith(isLoading: true, clearError: true, clearRoute: true);
 
@@ -108,7 +145,7 @@ class NavigationNotifier extends StateNotifier<NavigationState> {
           'https://router.project-osrm.org/route/v1/driving/'
           '${origin.longitude},${origin.latitude};'
           '${destination.longitude},${destination.latitude}'
-          '?overview=simplified&geometries=geojson&steps=true&annotations=false$excludeParam';
+          '?overview=full&geometries=geojson&steps=true&annotations=false$excludeParam';
 
       // Fetch raw string to avoid Dio blocking the main thread with JSON decoding
       final resp = await _dio.get(
@@ -127,11 +164,18 @@ class NavigationNotifier extends StateNotifier<NavigationState> {
       final route = _parseOsrmRoute(osrmRoute, origin, destination);
 
       state = state.copyWith(
-        status: NavigationStatus.routing,
+        status: isAutoReroute ? NavigationStatus.navigating : NavigationStatus.routing,
         activeRoute: route,
         currentStepIndex: 0,
         nearbyPois: [], // Clear old POIs
         isLoading: false,
+        destinationName: destinationName,
+        avoidTolls: avoidTolls,
+        avoidHighways: avoidHighways,
+        remainingDistanceMeters: route.distanceMeters,
+        remainingDurationSeconds: route.durationSeconds,
+        currentRoadName: route.steps.isNotEmpty ? route.steps.first.roadName : '',
+        currentRoadRef: route.steps.isNotEmpty ? route.steps.first.roadRef : '',
       );
 
       // Fetch truck POIs along the route in the background (non-blocking)
@@ -168,6 +212,24 @@ class NavigationNotifier extends StateNotifier<NavigationState> {
         final maneuverType = maneuver['type'] as String? ?? 'straight';
         final modifier = maneuver['modifier'] as String? ?? '';
 
+        // Extract lane guidance from intersections (OSRM feature)
+        final intersections = stepMap['intersections'] as List? ?? [];
+        final lanes = <LaneInfo>[];
+        if (intersections.isNotEmpty) {
+          final firstIntersection = intersections.first as Map<String, dynamic>? ?? {};
+          final rawLanes = firstIntersection['lanes'] as List?;
+          if (rawLanes != null) {
+            for (final laneRaw in rawLanes) {
+              final laneMap = laneRaw as Map<String, dynamic>? ?? {};
+              final indications = ((laneMap['indications'] as List?) ?? [])
+                  .map((e) => e.toString())
+                  .toList();
+              final isValid = laneMap['valid'] as bool? ?? false;
+              lanes.add(LaneInfo(indications: indications, isValid: isValid));
+            }
+          }
+        }
+
         steps.add(RouteStep(
           instruction: instruction,
           distanceMeters: (stepMap['distance'] as num?)?.toDouble() ?? 0,
@@ -177,6 +239,9 @@ class NavigationNotifier extends StateNotifier<NavigationState> {
             (location.length > 1 ? location[1] : 0).toDouble(),
             (location.isNotEmpty ? location[0] : 0).toDouble(),
           ),
+          lanes: lanes,
+          roadName: (stepMap['name'] as String?)?.trim() ?? '',
+          roadRef: (stepMap['ref'] as String?)?.trim() ?? '',
         ));
       }
     }
@@ -373,8 +438,12 @@ out body 40;
     return a;
   }
 
-  /// Search for nearby POIs by category around a center point (e.g. current location)
-  Future<void> searchNearbyPois(LatLng center, String category) async {
+  /// Search for nearby POIs by categories around a center point
+  Future<void> searchNearbyPois(LatLng center, List<String> categories) async {
+    if (categories.isEmpty) {
+      state = state.copyWith(nearbyPois: []);
+      return;
+    }
     state = state.copyWith(isLoading: true);
     try {
       // Create a small bounding box around the center (~20km radius)
@@ -387,24 +456,30 @@ out body 40;
       final maxLon = center.longitude + lonOffset;
 
       String queryTags = '';
-      switch (category) {
-        case 'Fuel':
-          queryTags = 'node["amenity"="fuel"]($minLat,$minLon,$maxLat,$maxLon); node["amenity"="truck_stop"]($minLat,$minLon,$maxLat,$maxLon);';
-          break;
-        case 'Parking':
-          queryTags = 'node["amenity"="parking"]["hgv"="yes"]($minLat,$minLon,$maxLat,$maxLon); node["amenity"="truck_parking"]($minLat,$minLon,$maxLat,$maxLon);';
-          break;
-        case 'Weigh Station':
-          queryTags = 'node["highway"="weigh_station"]($minLat,$minLon,$maxLat,$maxLon);';
-          break;
-        case 'Food':
-          queryTags = 'node["amenity"="restaurant"]($minLat,$minLon,$maxLat,$maxLon); node["amenity"="fast_food"]($minLat,$minLon,$maxLat,$maxLon);';
-          break;
-        case 'Rest Area':
-          queryTags = 'node["highway"="rest_area"]($minLat,$minLon,$maxLat,$maxLon); node["amenity"="rest_area"]($minLat,$minLon,$maxLat,$maxLon);';
-          break;
-        default:
-          queryTags = 'node["amenity"="$category"]($minLat,$minLon,$maxLat,$maxLon);';
+      for (final category in categories) {
+        switch (category) {
+          case 'Truck Stop':
+            queryTags += 'nwr["amenity"="truck_stop"]($minLat,$minLon,$maxLat,$maxLon); ';
+            queryTags += 'nwr["highway"="rest_area"]($minLat,$minLon,$maxLat,$maxLon); ';
+            queryTags += 'nwr["amenity"="rest_area"]($minLat,$minLon,$maxLat,$maxLon); ';
+            // Include major brands by name or brand tag
+            queryTags += "nwr[\"brand\"~\"Pilot|Flying J|TA|Petro|Love\",i]($minLat,$minLon,$maxLat,$maxLon); ";
+            queryTags += "nwr[\"name\"~\"Pilot|Flying J|TA|Petro|TravelCenters of America|Love's\",i]($minLat,$minLon,$maxLat,$maxLon); ";
+            break;
+          case 'Fuel':
+            queryTags += 'nwr["amenity"="fuel"]($minLat,$minLon,$maxLat,$maxLon); nwr["amenity"="truck_stop"]($minLat,$minLon,$maxLat,$maxLon); ';
+            break;
+          case 'Weigh Station':
+            queryTags += 'nwr["highway"="weigh_station"]($minLat,$minLon,$maxLat,$maxLon); ';
+            queryTags += 'nwr["amenity"="weigh_scale"]($minLat,$minLon,$maxLat,$maxLon); ';
+            queryTags += "nwr[\"name\"~\"CAT Scale\",i]($minLat,$minLon,$maxLat,$maxLon); ";
+            break;
+          case 'Food':
+            queryTags += 'nwr["amenity"="restaurant"]($minLat,$minLon,$maxLat,$maxLon); nwr["amenity"="fast_food"]($minLat,$minLon,$maxLat,$maxLon); ';
+            break;
+          default:
+            queryTags += 'nwr["amenity"="$category"]($minLat,$minLon,$maxLat,$maxLon); ';
+        }
       }
 
       final query = '''
@@ -412,7 +487,7 @@ out body 40;
 (
   $queryTags
 );
-out body 40;
+out center tags 40;
 ''';
 
       final resp = await _dio.post(
@@ -430,16 +505,21 @@ out body 40;
 
       for (final el in elements) {
         final tags = el['tags'] as Map<String, dynamic>? ?? {};
-        final lat = (el['lat'] as num?)?.toDouble();
-        final lon = (el['lon'] as num?)?.toDouble();
+        final centerObj = el['center'] as Map<String, dynamic>?;
+        final rawLat = el['lat'] ?? centerObj?['lat'];
+        final rawLon = el['lon'] ?? centerObj?['lon'];
+        final lat = (rawLat as num?)?.toDouble();
+        final lon = (rawLon as num?)?.toDouble();
         if (lat == null || lon == null) continue;
 
-        final name = tags['name'] as String? ?? category;
+        final name = _normalizeName(tags);
+        
+        // Infer type from tags
         String mappedType = 'truck_stop';
-        if (category == 'Food') mappedType = 'restaurant';
-        if (category == 'Weigh Station') mappedType = 'weigh_station';
-        if (category == 'Rest Area') mappedType = 'rest_area';
-        if (category == 'Parking') mappedType = 'truck_parking';
+        if (tags['highway'] == 'weigh_station' || tags['amenity'] == 'weigh_scale' || name.toLowerCase().contains('scale')) mappedType = 'weigh_station';
+        else if (tags['highway'] == 'rest_area' || tags['amenity'] == 'rest_area') mappedType = 'rest_area';
+        else if (tags['amenity'] == 'restaurant' || tags['amenity'] == 'fast_food') mappedType = 'restaurant';
+        else if (tags['amenity'] == 'parking' || tags['amenity'] == 'truck_parking') mappedType = 'truck_parking';
 
         pois.add(PoiPoint(
           id: el['id']?.toString() ?? '$lat$lon',
@@ -455,6 +535,89 @@ out body 40;
     } catch (_) {
       state = state.copyWith(isLoading: false);
     }
+  }
+
+  /// Converts raw OSM tags into a clean, human-readable POI name.
+  /// Prioritizes: recognized brand → cleaned raw name → type fallback.
+  static String _normalizeName(Map<String, dynamic> tags) {
+    final rawName     = tags['name']     as String? ?? '';
+    final brand       = tags['brand']    as String? ?? '';
+    final operator_   = tags['operator'] as String? ?? '';
+    final amenity     = tags['amenity']  as String? ?? '';
+    final highway     = tags['highway']  as String? ?? '';
+    final ref         = tags['ref']      as String? ?? '';
+
+    // ── 1. Recognized brand patterns ─────────────────────────────────────────
+    final combined = '$rawName $brand $operator_'.toLowerCase();
+
+    if (_matchesBrand(combined, ['pilot flying j', 'pilot travel center', 'pilot travel'])) {
+      return 'Pilot Flying J Travel Center';
+    }
+    if (_matchesBrand(combined, ['flying j'])) {
+      return 'Flying J Travel Plaza';
+    }
+    if (_matchesBrand(combined, ['pilot'])) {
+      return 'Pilot Travel Center';
+    }
+    if (_matchesBrand(combined, ['ta travel center', 'travelcenters of america', 'travel centers of america'])) {
+      return 'TA Travel Center';
+    }
+    if (_matchesBrand(combined, ['petro stopping center', 'petro travel center'])) {
+      return 'Petro Stopping Center';
+    }
+    if (_matchesBrand(combined, ['petro'])) {
+      return 'Petro Stopping Center';
+    }
+    if (_matchesBrand(combined, ["love's travel stop", "love's", 'loves travel'])) {
+      return "Love's Travel Stop";
+    }
+    if (_matchesBrand(combined, ['kwik trip', 'kwik star'])) {
+      return 'Kwik Trip';
+    }
+    if (_matchesBrand(combined, ['casey\'s', 'caseys'])) {
+      return "Casey's General Store";
+    }
+    if (_matchesBrand(combined, ['flying star'])) {
+      return 'Flying Star';
+    }
+    if (_matchesBrand(combined, ['cat scale', 'certified autoplex', 'cat weigh'])) {
+      return 'CAT Scale';
+    }
+    if (_matchesBrand(combined, ['iowa 80'])) {
+      return 'Iowa 80 Truckstop';
+    }
+
+    // ── 2. Rest areas / weigh stations ─────────────────────────────────────
+    if (highway == 'weigh_station' || amenity == 'weigh_scale') {
+      if (rawName.isNotEmpty) return _cleanName(rawName);
+      return 'Weigh Station';
+    }
+    if (highway == 'rest_area' || amenity == 'rest_area') {
+      if (rawName.isNotEmpty) {
+        // e.g. "I-80 Rest Area MM 231" → keep as-is but clean
+        return _cleanName(rawName);
+      }
+      final refStr = ref.isNotEmpty ? ' ($ref)' : '';
+      return 'Rest Area$refStr';
+    }
+    if (amenity == 'truck_stop') {
+      if (rawName.isNotEmpty) return _cleanName(rawName);
+      return 'Truck Stop';
+    }
+
+    // ── 3. Use cleaned raw name if available ───────────────────────────────
+    if (rawName.isNotEmpty) return _cleanName(rawName);
+
+    return 'Truck Stop';
+  }
+
+  static bool _matchesBrand(String combined, List<String> keywords) {
+    return keywords.any((k) => combined.contains(k));
+  }
+
+  /// Cleans up raw OSM names: trims whitespace, removes excessive codes.
+  static String _cleanName(String name) {
+    return name.trim();
   }
 
   String _friendlyError(Object e) {
@@ -480,30 +643,143 @@ out body 40;
       return;
     }
 
+    // Throttle: run at most every 400ms to avoid flooding the state notifier
+    final now = DateTime.now();
+    if (now.difference(_lastProgressUpdate).inMilliseconds < 400) return;
+    _lastProgressUpdate = now;
+
     final steps = state.activeRoute!.steps;
-    if (state.currentStepIndex >= steps.length) {
+    final idx = state.currentStepIndex;
+
+    // Check arrival at final destination
+    if (idx >= steps.length) {
       state = state.copyWith(status: NavigationStatus.arrived);
       return;
     }
 
-    final currentStep = steps[state.currentStepIndex];
+    final currentStep = steps[idx];
     final dist = const Distance().as(
       LengthUnit.Meter,
       currentLocation,
       currentStep.location,
     );
 
-    if (dist < 30 && state.currentStepIndex < steps.length - 1) {
-      state = state.copyWith(
-        currentStepIndex: state.currentStepIndex + 1,
-        distanceToNextStepMeters: dist,
+    // Voice Alerts for POIs
+    for (final poi in state.nearbyPois) {
+      if ((poi.type == 'weigh_station' || poi.type == 'rest_area') && !_announcedPoiIds.contains(poi.id)) {
+        final poiDist = const Distance().as(LengthUnit.Meter, currentLocation, poi.location);
+        if (poiDist < 3218) { // ~2 miles
+          _announcedPoiIds.add(poi.id);
+          final readableType = poi.type == 'weigh_station' ? 'Weigh station' : 'Rest area';
+          onVoiceAlert?.call('$readableType approaching in 2 miles');
+        }
+      }
+    }
+
+    // Compute remaining distance = dist to current step + sum of all future steps
+    double remaining = dist;
+    for (int i = idx + 1; i < steps.length; i++) {
+      remaining += steps[i].distanceMeters;
+    }
+    // Remaining duration — proportional based on remaining/total distance
+    final totalDist = state.activeRoute!.distanceMeters;
+    final totalDur = state.activeRoute!.durationSeconds;
+    final remainingDur = totalDist > 0 ? (remaining / totalDist) * totalDur : 0.0;
+
+    // Current road info from the active step
+    final roadName = currentStep.roadName;
+    final roadRef = currentStep.roadRef;
+
+    // Advance to next step when within 20m of the maneuver point
+    final newIdx = (dist < 20 && idx < steps.length - 1) ? idx + 1 : idx;
+    state = state.copyWith(
+      currentStepIndex: newIdx,
+      distanceToNextStepMeters: newIdx != idx
+          ? const Distance().as(LengthUnit.Meter, currentLocation, steps[newIdx].location)
+          : dist,
+      remainingDistanceMeters: remaining,
+      remainingDurationSeconds: remainingDur,
+      currentRoadName: roadName,
+      currentRoadRef: roadRef,
+    );
+
+    // Check arrival: within 25m of the last step
+    if (newIdx == steps.length - 1 && dist < 25) {
+      state = state.copyWith(status: NavigationStatus.arrived);
+      return;
+    }
+
+    // OFF-ROUTE DETECTION
+    // Calculate precise cross-track distance to the route polyline.
+    final crossTrackDist = _distanceToPolylineMeters(currentLocation, state.activeRoute!.polyline);
+    
+    // If the truck is more than 75 meters away from the route line, and we haven't recalculated in 5 seconds
+    if (crossTrackDist > 75 && now.difference(_lastRecalculation).inSeconds > 5) {
+      _lastRecalculation = now;
+      
+      // Keep the current destination but calculate a new route from the current location
+      final dest = state.activeRoute!.destination;
+      final destName = state.destinationName;
+      
+      calculateRoute(
+        origin: currentLocation,
+        destination: dest,
+        destinationName: destName,
+        avoidTolls: state.avoidTolls,
+        avoidHighways: state.avoidHighways,
+        isAutoReroute: true,
       );
-    } else {
-      state = state.copyWith(distanceToNextStepMeters: dist);
     }
   }
 
+  /// Calculates the shortest geometric distance from a point to a polyline.
+  /// Uses a high-performance flat plane projection approximation.
+  double _distanceToPolylineMeters(LatLng p, List<LatLng> polyline) {
+    if (polyline.isEmpty) return double.infinity;
+    if (polyline.length == 1) return const Distance().as(LengthUnit.Meter, p, polyline.first).toDouble();
+
+    double minDist = double.infinity;
+
+    final latRad = p.latitude * pi / 180.0;
+    final cosLat = cos(latRad);
+    const metersPerDeg = 111320.0;
+    
+    final px = p.longitude * cosLat * metersPerDeg;
+    final py = p.latitude * metersPerDeg;
+
+    for (int i = 0; i < polyline.length - 1; i++) {
+      final v = polyline[i];
+      final w = polyline[i + 1];
+
+      final vx = v.longitude * cosLat * metersPerDeg;
+      final vy = v.latitude * metersPerDeg;
+      
+      final wx = w.longitude * cosLat * metersPerDeg;
+      final wy = w.latitude * metersPerDeg;
+      
+      final dx = wx - vx;
+      final dy = wy - vy;
+      
+      final l2 = dx * dx + dy * dy;
+      double dist;
+      
+      if (l2 == 0.0) {
+        dist = sqrt((px - vx) * (px - vx) + (py - vy) * (py - vy));
+      } else {
+        final t = max(0.0, min(1.0, ((px - vx) * dx + (py - vy) * dy) / l2));
+        final projX = vx + t * dx;
+        final projY = vy + t * dy;
+        dist = sqrt((px - projX) * (px - projX) + (py - projY) * (py - projY));
+      }
+      
+      if (dist < minDist) minDist = dist;
+    }
+    
+    return minDist;
+  }
+
   void cancelNavigation() {
+    _announcedPoiIds.clear();
     state = const NavigationState();
   }
 

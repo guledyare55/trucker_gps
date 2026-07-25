@@ -1,4 +1,5 @@
 enum VehicleType { car, truck }
+enum MapThemeMode { light, dark, system, auto }
 
 class AppSettings {
   final VehicleType vehicleType;
@@ -6,6 +7,8 @@ class AppSettings {
   final bool avoidHighways;
   final bool voiceEnabled;
   final bool speedWarnings;
+  final MapThemeMode mapThemeMode;
+  final bool showSpeedHud;
 
   const AppSettings({
     this.vehicleType = VehicleType.truck,
@@ -13,6 +16,8 @@ class AppSettings {
     this.avoidHighways = false,
     this.voiceEnabled = true,
     this.speedWarnings = true,
+    this.mapThemeMode = MapThemeMode.auto,
+    this.showSpeedHud = true,
   });
 
   AppSettings copyWith({
@@ -21,6 +26,8 @@ class AppSettings {
     bool? avoidHighways,
     bool? voiceEnabled,
     bool? speedWarnings,
+    MapThemeMode? mapThemeMode,
+    bool? showSpeedHud,
   }) {
     return AppSettings(
       vehicleType: vehicleType ?? this.vehicleType,
@@ -28,6 +35,8 @@ class AppSettings {
       avoidHighways: avoidHighways ?? this.avoidHighways,
       voiceEnabled: voiceEnabled ?? this.voiceEnabled,
       speedWarnings: speedWarnings ?? this.speedWarnings,
+      mapThemeMode: mapThemeMode ?? this.mapThemeMode,
+      showSpeedHud: showSpeedHud ?? this.showSpeedHud,
     );
   }
 
@@ -37,6 +46,8 @@ class AppSettings {
         'avoidHighways': avoidHighways,
         'voiceEnabled': voiceEnabled,
         'speedWarnings': speedWarnings,
+        'mapThemeMode': mapThemeMode.name,
+        'showSpeedHud': showSpeedHud,
       };
 
   factory AppSettings.fromJson(Map<String, dynamic> json) {
@@ -49,6 +60,11 @@ class AppSettings {
       avoidHighways: json['avoidHighways'] ?? false,
       voiceEnabled: json['voiceEnabled'] ?? true,
       speedWarnings: json['speedWarnings'] ?? true,
+      mapThemeMode: MapThemeMode.values.firstWhere(
+        (e) => e.name == json['mapThemeMode'],
+        orElse: () => MapThemeMode.auto,
+      ),
+      showSpeedHud: json['showSpeedHud'] ?? true,
     );
   }
 }
