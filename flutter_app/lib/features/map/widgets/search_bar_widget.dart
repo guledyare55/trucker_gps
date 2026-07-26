@@ -107,8 +107,10 @@ class _SearchBarWidgetState extends State<SearchBarWidget>
           _search(result.recognizedWords);
         }
       },
-      listenFor: const Duration(seconds: 10),
-      pauseFor: const Duration(seconds: 3),
+      listenOptions: SpeechListenOptions(
+        listenMode: ListenMode.search,
+        cancelOnError: true,
+      ),
     );
   }
 
