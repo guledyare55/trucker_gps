@@ -283,9 +283,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   polylines: [
                     // Outer glow / casing
                     Polyline(
-                      points: activeRoute.remainingPolyline.isNotEmpty 
-                          ? activeRoute.remainingPolyline 
-                          : activeRoute.polyline,
+                      points: activeRoute.polyline,
                       color: AppTheme.primaryDark.withValues(alpha: 0.6),
                       strokeWidth: 11.0,
                       strokeJoin: StrokeJoin.bevel,
@@ -293,9 +291,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                     ),
                     // Main route line
                     Polyline(
-                      points: activeRoute.remainingPolyline.isNotEmpty 
-                          ? activeRoute.remainingPolyline 
-                          : activeRoute.polyline,
+                      points: activeRoute.polyline,
                       color: AppTheme.primary,
                       strokeWidth: 7.0,
                       strokeJoin: StrokeJoin.bevel,
@@ -402,24 +398,25 @@ class _MapScreenState extends ConsumerState<MapScreen>
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         // Isolated Consumer — only SpeedHud rebuilds on GPS ticks
-                        if (settings.showSpeedHud)
-                          Consumer(
-                            builder: (context, ref, _) {
-                              final speed = ref.watch(currentSpeedMphProvider);
-                              return Row(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  SpeedHud(speedMph: speed),
+                        Consumer(
+                          builder: (context, ref, _) {
+                            final speed = ref.watch(currentSpeedMphProvider);
+                            return Row(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                SpeedHud(speedMph: speed),
+                                if (settings.showSpeedHud) ...[
                                   const SizedBox(width: 8),
                                   SpeedLimitSign(
                                     speedLimit: _speedLimit,
                                     currentSpeedMph: speed,
                                   ),
                                 ],
-                              );
-                            },
-                          ),
+                              ],
+                            );
+                          },
+                        ),
                         const Spacer(),
                         Column(
                           mainAxisSize: MainAxisSize.min,

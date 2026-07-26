@@ -106,25 +106,7 @@ class NavigationBanner extends StatelessWidget {
                 ],
               ),
             ),
-                        'Then: ${nextStep.instruction}',
-                        style: const TextStyle(color: Colors.white60, fontSize: 15),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            // Lane Guidance
-            if (step.lanes.isNotEmpty)
-              Container(
-                width: double.infinity,
-                color: const Color(0xFF002B27),
-                padding: const EdgeInsets.only(bottom: 12),
-                child: LaneGuidanceWidget(lanes: step.lanes),
-              ),
-          ],
-        ),
+        ],
       ),
     );
   }
