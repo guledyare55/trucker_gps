@@ -293,11 +293,20 @@ class _FuelScreenState extends ConsumerState<FuelScreen> {
 
           // Amenities & Route Action
           Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              if (defAtPump) _amenityTag(Icons.opacity, 'DEF', Colors.lightBlue),
-              if (parking > 0) _amenityTag(Icons.local_parking, '$parking Spaces', Colors.amber),
-              if (showers > 0) _amenityTag(Icons.shower, '$showers Showers', Colors.teal),
-              const Spacer(),
+              Expanded(
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    if (defAtPump) _amenityTag(Icons.opacity, 'DEF', Colors.lightBlue),
+                    if (parking > 0) _amenityTag(Icons.local_parking, '$parking Spaces', Colors.amber),
+                    if (showers > 0) _amenityTag(Icons.shower, '$showers Showers', Colors.teal),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
               if (lat != null && lon != null)
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
@@ -329,7 +338,6 @@ class _FuelScreenState extends ConsumerState<FuelScreen> {
 
   Widget _amenityTag(IconData icon, String label, Color color) {
     return Container(
-      margin: const EdgeInsets.only(right: 8),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.15),
