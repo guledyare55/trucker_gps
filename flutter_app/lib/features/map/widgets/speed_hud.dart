@@ -9,7 +9,10 @@ class SpeedHud extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final speed = speedMph < 0 ? 0.0 : speedMph;
+    var speed = speedMph < 0 ? 0.0 : speedMph;
+    // Clamp low speeds (GPS drift) to 0 mph
+    if (speed < 3.0) speed = 0.0;
+    
     final displaySpeed = speed.toStringAsFixed(0);
     final isOverSpeed = speed > 80;
     final speedColor = isOverSpeed ? AppTheme.danger : AppTheme.primary;

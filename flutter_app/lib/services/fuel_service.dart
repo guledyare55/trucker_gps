@@ -37,11 +37,12 @@ class FuelService {
     const distanceCalc = Distance();
 
     try {
+      // 1.0 degree is approx 60-70 miles bounding box
       final query = '''
         [out:json][timeout:15];
         (
-          node["amenity"="fuel"](${lat - 0.35},${lon - 0.35},${lat + 0.35},${lon + 0.35});
-          way["amenity"="fuel"](${lat - 0.35},${lon - 0.35},${lat + 0.35},${lon + 0.35});
+          node["amenity"="fuel"](${lat - 1.0},${lon - 1.0},${lat + 1.0},${lon + 1.0});
+          way["amenity"="fuel"](${lat - 1.0},${lon - 1.0},${lat + 1.0},${lon + 1.0});
         );
         out center 15;
       ''';
@@ -58,77 +59,55 @@ class FuelService {
       for (final el in elements) {
         final tags = el['tags'] as Map<String, dynamic>? ?? {};
         final rawName = tags['name'] ?? tags['brand'] ?? 'Truck Stop / Fuel Station';
-        final eLat = (el['lat'] ?? el['center']?['lat'] as num?)?.toDouble();
-        final eLon = (el['lon'] ?? el['center']?['lon'] as num?)?.toDouble();
+        final brand = tags['brand'] ?? _guessBrand(rawName);
+        if (brand == 'Unknown') continue; // Skip non-major truck stops to simulate commercial focus
 
-        if (eLat != null && eLon != null) {
-          final stationPos = LatLng(eLat, eLon);
-          final distMeters = distanceCalc.as(LengthUnit.Meter, userPos, stationPos);
-          final distMiles = distMeters / 1609.34;
+        final stLat = el['lat'] ?? el['center']?['lat'];
+        final stLon = el['lon'] ?? el['center']?['lon'];
+        if (stLat == null || stLon == null) continue;
 
-          final brand = _detectBrand(rawName, tags);
-          final priceVariance = _getPriceVariance(brand, idCount);
-          final dieselPrice = double.parse((basePrice + priceVariance).toStringAsFixed(3));
-          final cashPrice = double.parse((dieselPrice - 0.10).toStringAsFixed(3));
+        final distMeters = distanceCalc.as(LengthUnit.Meter, userPos, LatLng(stLat as double, stLon as double));
+        final distMiles = distMeters / 1609.34;
 
-          stations.add({
-            'id': 'st_$idCount',
-            'name': rawName,
-            'brand': brand,
-            'lat': eLat,
-            'lon': eLon,
-            'distance_miles': double.parse(distMiles.toStringAsFixed(1)),
-            'diesel_price': dieselPrice,
-            'cash_price': cashPrice,
-            'def_at_pump': tags['def'] == 'yes' || ["Love's", "Pilot", "Flying J", "TA", "Petro"].contains(brand),
-            'showers': brand == "Love's" || brand == "Pilot" || brand == "TA" ? 8 : (idCount % 4),
-            'parking_spaces': brand == "Love's" ? 120 : (brand == "TA" ? 180 : 65),
-            'scales': tags['scale'] == 'yes' || ["Love's", "Pilot", "TA", "Petro"].contains(brand),
-          });
-          idCount++;
-        }
+        // Skip if too far, 1 degree can be large
+        if (distMiles > 75) continue;
+
+        // Randomize some amenities based on ID for realism since Overpass often lacks them
+        final hasDef = tags['def'] == 'yes' || idCount % 2 == 0;
+        final showers = tags['showers'] == 'yes' ? 8 : (idCount % 3 == 0 ? 0 : 5 + idCount);
+        final parkingSpaces = tags['hgv_parking'] != null ? 50 : 20 + (idCount * 15);
+        final priceVariance = (idCount % 5) * 0.02 - 0.04;
+        final dieselPrice = double.parse((basePrice + priceVariance).toStringAsFixed(3));
+
+        stations.add({
+          'id': el['id']?.toString() ?? 'ts_$idCount',
+          'name': rawName,
+          'brand': brand,
+          'diesel_price': dieselPrice,
+          'cash_price': double.parse((dieselPrice - 0.10).toStringAsFixed(3)),
+          'distance_miles': double.parse(distMiles.toStringAsFixed(1)),
+          'def_at_pump': hasDef,
+          'showers': showers,
+          'parking_spaces': parkingSpaces,
+          'lat': stLat,
+          'lon': stLon,
+        });
+        idCount++;
       }
     } catch (_) {}
 
-    // Fallback simulated truck stops if Overpass returns empty or offline
-    if (stations.isEmpty) {
-      final defaultBrands = [
-        {'name': "Love's Travel Stop #614", 'brand': "Love's", 'offLat': 0.04, 'offLon': 0.03, 'var': -0.06},
-        {'name': "Pilot Travel Center #218", 'brand': "Pilot", 'offLat': -0.05, 'offLon': 0.06, 'var': -0.04},
-        {'name': "Flying J Travel Center #405", 'brand': "Flying J", 'offLat': 0.08, 'offLon': -0.04, 'var': -0.02},
-        {'name': "TA Truck Service & Travel Center", 'brand': "TA", 'offLat': -0.09, 'offLon': -0.08, 'var': 0.03},
-        {'name': "Speedway Commercial Diesel", 'brand': "Speedway", 'offLat': 0.02, 'offLon': -0.07, 'var': -0.08},
-        {'name': "Circle K Truck Stop", 'brand': "Circle K", 'offLat': -0.03, 'offLon': -0.02, 'var': 0.01},
-      ];
-
-      for (int i = 0; i < defaultBrands.length; i++) {
-        final b = defaultBrands[i];
-        final stLat = lat + (b['offLat'] as double);
-        final stLon = lon + (b['offLon'] as double);
-        final distMeters = distanceCalc.as(LengthUnit.Meter, userPos, LatLng(stLat, stLon));
-        final distMiles = distMeters / 1609.34;
-        final dieselPrice = double.parse((basePrice + (b['var'] as double)).toStringAsFixed(3));
-
-        stations.add({
-          'id': 'st_def_$i',
-          'name': b['name'],
-          'brand': b['brand'],
-          'lat': stLat,
-          'lon': stLon,
-          'distance_miles': double.parse(distMiles.toStringAsFixed(1)),
-          'diesel_price': dieselPrice,
-          'cash_price': double.parse((dieselPrice - 0.10).toStringAsFixed(3)),
-          'def_at_pump': true,
-          'showers': 6 + (i * 2),
-          'parking_spaces': 80 + (i * 25),
-          'scales': true,
-        });
-      }
-    }
-
-    // Sort by distance initially
     stations.sort((a, b) => (a['distance_miles'] as double).compareTo(b['distance_miles'] as double));
     return stations;
+  }
+
+  String _guessBrand(String name) {
+    final lower = name.toLowerCase();
+    if (lower.contains('love')) return 'Love\'s';
+    if (lower.contains('pilot')) return 'Pilot';
+    if (lower.contains('flying j')) return 'Flying J';
+    if (lower.contains('ta') || lower.contains('travelcenters')) return 'TA';
+    if (lower.contains('petro')) return 'Petro';
+    return 'Unknown';
   }
 
   String _detectBrand(String name, Map<String, dynamic> tags) {

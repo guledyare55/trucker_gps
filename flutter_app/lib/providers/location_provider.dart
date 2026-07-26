@@ -3,13 +3,25 @@ import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 
 // Provides a continuous stream of the user's location
-final locationStreamProvider = StreamProvider<Position>((ref) {
+final locationStreamProvider = StreamProvider<Position>((ref) async* {
   const locationSettings = LocationSettings(
     accuracy: LocationAccuracy.bestForNavigation,
     distanceFilter: 5, // 5m balance: real-time feel without flooding the main thread
   );
 
-  return Geolocator.getPositionStream(locationSettings: locationSettings);
+  // Emit current position immediately so UI doesn't hang waiting for movement
+  try {
+    final currentPos = await Geolocator.getCurrentPosition(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.bestForNavigation,
+        timeLimit: Duration(seconds: 5),
+      ),
+    );
+    yield currentPos;
+  } catch (_) {}
+
+  // Then yield updates
+  yield* Geolocator.getPositionStream(locationSettings: locationSettings);
 });
 
 // A derived provider that just yields the LatLng for mapping
