@@ -235,6 +235,9 @@ class NavigationNotifier extends StateNotifier<NavigationState> {
           }
         }
 
+        final destinations = (stepMap['destinations'] as String?)?.trim() ?? '';
+        final exits = stepMap['exits'] != null ? stepMap['exits'].toString().trim() : '';
+
         steps.add(RouteStep(
           instruction: instruction,
           distanceMeters: (stepMap['distance'] as num?)?.toDouble() ?? 0,
@@ -247,6 +250,8 @@ class NavigationNotifier extends StateNotifier<NavigationState> {
           lanes: lanes,
           roadName: (stepMap['name'] as String?)?.trim() ?? '',
           roadRef: (stepMap['ref'] as String?)?.trim() ?? '',
+          destinations: destinations,
+          exits: exits,
         ));
       }
     }
@@ -318,16 +323,18 @@ class NavigationNotifier extends StateNotifier<NavigationState> {
   }
 
   String _mapOsrmType(String type, String modifier) {
-    if (modifier.contains('left')) return 'turn-left';
-    if (modifier.contains('right')) return 'turn-right';
-    if (modifier.contains('slight left')) return 'slight-left';
-    if (modifier.contains('slight right')) return 'slight-right';
+    if (modifier.contains('uturn')) return 'uturn';
     if (modifier.contains('sharp left')) return 'sharp-left';
     if (modifier.contains('sharp right')) return 'sharp-right';
+    if (modifier.contains('slight left')) return 'slight-left';
+    if (modifier.contains('slight right')) return 'slight-right';
+    if (modifier.contains('left')) return 'turn-left';
+    if (modifier.contains('right')) return 'turn-right';
     if (type == 'roundabout' || type == 'rotary') return 'roundabout';
     if (type == 'arrive') return 'arrive';
     if (type == 'merge') return 'merge';
-    if (type == 'ramp' || type == 'off ramp') return 'ramp';
+    if (type == 'off ramp' || type == 'on ramp' || type == 'ramp') return 'ramp';
+    if (type == 'fork') return modifier.contains('left') ? 'fork-left' : 'fork-right';
     return 'straight';
   }
 

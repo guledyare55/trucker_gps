@@ -67,6 +67,59 @@ class NavigationBanner extends StatelessWidget {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
+                      // Highway Sign Display (if destinations or exits exist)
+                      if (step.destinations.isNotEmpty || step.exits.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF006B38), // Standard US Guide Sign Green
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: Colors.white, width: 1.5),
+                            boxShadow: const [
+                              BoxShadow(color: Colors.black45, blurRadius: 4, offset: Offset(0, 2))
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (step.exits.isNotEmpty) ...[
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFFC72C), // Highway Exit Yellow
+                                    borderRadius: BorderRadius.circular(3),
+                                  ),
+                                  child: Text(
+                                    'EXIT ${step.exits.toUpperCase()}',
+                                    style: const TextStyle(
+                                      color: Colors.black,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                              ],
+                              if (step.destinations.isNotEmpty)
+                                Flexible(
+                                  child: Text(
+                                    step.destinations.toUpperCase(),
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 0.5,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -116,9 +169,9 @@ class NavigationBanner extends StatelessWidget {
       margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppTheme.success.withOpacity(0.15),
+        color: AppTheme.success.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppTheme.success.withOpacity(0.5)),
+        border: Border.all(color: AppTheme.success.withValues(alpha: 0.5)),
       ),
       child: Row(
         children: [
@@ -174,6 +227,7 @@ class NavigationBanner extends StatelessWidget {
       case 'sharp-right':
         return Icons.turn_sharp_right;
       case 'u-turn':
+      case 'uturn':
         return Icons.u_turn_left;
       case 'roundabout':
         return Icons.roundabout_right;
@@ -181,7 +235,11 @@ class NavigationBanner extends StatelessWidget {
         return Icons.merge;
       case 'ramp':
       case 'exit':
-        return Icons.exit_to_app;
+        return Icons.ramp_right;
+      case 'fork-left':
+        return Icons.fork_left;
+      case 'fork-right':
+        return Icons.fork_right;
       case 'arrive':
         return Icons.flag;
       default:

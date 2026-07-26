@@ -20,6 +20,8 @@ class RouteStep {
   final List<LaneInfo> lanes; // Lane guidance data, may be empty
   final String roadName;      // Human-readable road name e.g. "Interstate 24"
   final String roadRef;       // OSM ref tag e.g. "I 24" or "US 64"
+  final String destinations;  // Highway sign destination text (e.g. "Atlanta / Knoxville")
+  final String exits;         // Highway exit sign numbers/text (e.g. "42B")
 
   const RouteStep({
     required this.instruction,
@@ -31,6 +33,8 @@ class RouteStep {
     this.lanes = const [],
     this.roadName = '',
     this.roadRef = '',
+    this.destinations = '',
+    this.exits = '',
   });
 
   String get distanceMiles => '${(distanceMeters / 1609.34).toStringAsFixed(1)} mi';
@@ -47,6 +51,8 @@ class RouteStep {
         (coords.length > 1 ? coords[1] : 0).toDouble(),
         (coords.isNotEmpty ? coords[0] : 0).toDouble(),
       ),
+      destinations: json['destinations'] ?? '',
+      exits: json['exits'] ?? '',
     );
   }
 }

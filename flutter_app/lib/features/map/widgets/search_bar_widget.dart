@@ -1,9 +1,11 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:trucker_gps/core/theme/app_theme.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:dio/dio.dart';
 
-/// Destination search bar — always full width, no jittery animations.
+/// Destination search bar — smart focus, 10-item history, scrollable 5-item view.
 class SearchBarWidget extends StatefulWidget {
   final void Function(LatLng destination, String name) onDestinationSelected;
   final void Function(List<String> categories)? onFiltersChanged;
@@ -25,6 +27,7 @@ class _SearchBarWidgetState extends State<SearchBarWidget>
   final Dio _dio = Dio();
 
   List<Map<String, dynamic>> _suggestions = [];
+  List<Map<String, dynamic>> _history = [];
   final Set<String> _activeFilters = {};
   bool _isSearching = false;
   bool _hasFocus = false;
@@ -39,9 +42,14 @@ class _SearchBarWidgetState extends State<SearchBarWidget>
         vsync: this, duration: const Duration(milliseconds: 200));
     _fadeAnim = CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut);
 
+    _loadHistory();
+
     _focusNode.addListener(() {
       setState(() => _hasFocus = _focusNode.hasFocus);
       if (_hasFocus) {
+        if (_controller.text.isEmpty && _history.isNotEmpty) {
+          setState(() => _suggestions = _history);
+        }
         _animCtrl.forward();
       } else {
         if (_controller.text.isEmpty) {
@@ -50,6 +58,39 @@ class _SearchBarWidgetState extends State<SearchBarWidget>
         _animCtrl.reverse();
       }
     });
+  }
+
+  Future<void> _loadHistory() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final String? jsonStr = prefs.getString('recent_searches_v1');
+      if (jsonStr != null) {
+        final List decoded = jsonDecode(jsonStr);
+        if (mounted) {
+          setState(() {
+            _history = decoded.map((e) => Map<String, dynamic>.from(e)).toList();
+          });
+        }
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _saveHistoryItem(Map<String, dynamic> item) async {
+    try {
+      final name = item['display_name'] ?? '';
+      _history.removeWhere((h) => (h['display_name'] ?? '') == name);
+      _history.insert(0, {
+        'display_name': name,
+        'lat': item['lat']?.toString() ?? '0',
+        'lon': item['lon']?.toString() ?? '0',
+        'isHistory': true,
+      });
+      if (_history.length > 10) {
+        _history = _history.sublist(0, 10);
+      }
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('recent_searches_v1', jsonEncode(_history));
+    } catch (_) {}
   }
 
   @override
@@ -81,8 +122,11 @@ class _SearchBarWidgetState extends State<SearchBarWidget>
   }
 
   Future<void> _search(String query) async {
-    if (query.length < 3) {
-      setState(() => _suggestions = []);
+    if (query.trim().isEmpty) {
+      setState(() => _suggestions = _history);
+      return;
+    }
+    if (query.length < 2) {
       return;
     }
     setState(() => _isSearching = true);
@@ -92,7 +136,7 @@ class _SearchBarWidgetState extends State<SearchBarWidget>
         queryParameters: {
           'q': query,
           'format': 'json',
-          'limit': 6,
+          'limit': 10,
           'countrycodes': 'us,ca,mx',
         },
         options: Options(headers: {'User-Agent': 'TruckerGPS/1.0'}),
@@ -111,9 +155,10 @@ class _SearchBarWidgetState extends State<SearchBarWidget>
   }
 
   void _select(Map<String, dynamic> s) {
-    final lat = double.tryParse(s['lat'] ?? '0') ?? 0;
-    final lon = double.tryParse(s['lon'] ?? '0') ?? 0;
+    final lat = double.tryParse(s['lat']?.toString() ?? '0') ?? 0;
+    final lon = double.tryParse(s['lon']?.toString() ?? '0') ?? 0;
     final name = s['display_name'] ?? '';
+    _saveHistoryItem(s);
     _clear();
     widget.onDestinationSelected(LatLng(lat, lon), name);
   }
@@ -132,14 +177,14 @@ class _SearchBarWidgetState extends State<SearchBarWidget>
               borderRadius: BorderRadius.circular(18),
               border: Border.all(
                 color: _hasFocus
-                    ? AppTheme.primary.withOpacity(0.6)
+                    ? AppTheme.primary.withValues(alpha: 0.6)
                     : const Color(0xFF252535),
                 width: _hasFocus ? 1.5 : 1,
               ),
               boxShadow: [
                 BoxShadow(
                   color: _hasFocus
-                      ? AppTheme.primary.withOpacity(0.15)
+                      ? AppTheme.primary.withValues(alpha: 0.15)
                       : Colors.black38,
                   blurRadius: _hasFocus ? 20 : 12,
                   offset: const Offset(0, 3),
@@ -160,7 +205,7 @@ class _SearchBarWidgetState extends State<SearchBarWidget>
                   child: TextField(
                     controller: _controller,
                     focusNode: _focusNode,
-                    autofocus: false, // Prevents keyboard opening on startup
+                    autofocus: false,
                     style: const TextStyle(
                         color: AppTheme.textPrimary, fontSize: 16),
                     decoration: const InputDecoration(
@@ -199,12 +244,13 @@ class _SearchBarWidgetState extends State<SearchBarWidget>
             ),
           ),
 
-          // ── Suggestions dropdown ─────────────────────────────────────────
+          // ── Suggestions / History dropdown (Max 5 visible, scrollable to 10) ──
           if (_hasFocus && _suggestions.isNotEmpty)
             FadeTransition(
               opacity: _fadeAnim,
               child: Container(
                 margin: const EdgeInsets.only(top: 6),
+                constraints: const BoxConstraints(maxHeight: 280), // Shows 5 items, scrollable for rest
                 decoration: BoxDecoration(
                   color: AppTheme.bg2,
                   borderRadius: BorderRadius.circular(16),
@@ -218,46 +264,59 @@ class _SearchBarWidgetState extends State<SearchBarWidget>
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(16),
-                  child: ListView.separated(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: _suggestions.length,
-                    padding: const EdgeInsets.symmetric(vertical: 6),
-                    separatorBuilder: (_, __) => const Divider(
-                        color: Color(0xFF252535), height: 1, indent: 52),
-                    itemBuilder: (_, i) {
-                      final s = _suggestions[i];
-                      final parts =
-                          (s['display_name'] as String? ?? '').split(',');
-                      final title = parts.take(2).join(',').trim();
-                      final subtitle = parts.skip(2).take(2).join(',').trim();
-                      return ListTile(
-                        onTap: () => _select(s),
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 4),
-                        leading: Container(
-                          width: 36,
-                          height: 36,
-                          decoration: BoxDecoration(
-                            color: AppTheme.bg3,
-                            borderRadius: BorderRadius.circular(10),
+                  child: Scrollbar(
+                    thumbVisibility: true,
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      physics: const BouncingScrollPhysics(),
+                      itemCount: _suggestions.length,
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      separatorBuilder: (_, __) => const Divider(
+                          color: Color(0xFF252535), height: 1, indent: 52),
+                      itemBuilder: (_, i) {
+                        final s = _suggestions[i];
+                        final isHist = s['isHistory'] == true;
+                        final parts =
+                            (s['display_name'] as String? ?? '').split(',');
+                        final title = parts.take(2).join(',').trim();
+                        final subtitle = parts.skip(2).take(2).join(',').trim();
+                        return ListTile(
+                          onTap: () => _select(s),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 4),
+                          leading: Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: isHist
+                                  ? const Color(0xFF2A2A3C)
+                                  : AppTheme.bg3,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(
+                              isHist ? Icons.history : Icons.location_on,
+                              color: isHist ? Colors.amber : AppTheme.primary,
+                              size: 18,
+                            ),
                           ),
-                          child: const Icon(Icons.location_on,
-                              color: AppTheme.primary, size: 18),
-                        ),
-                        title: Text(title,
-                            style: const TextStyle(
-                                color: AppTheme.textPrimary,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600)),
-                        subtitle: subtitle.isNotEmpty
-                            ? Text(subtitle,
-                                style: const TextStyle(
-                                    color: AppTheme.textMuted, fontSize: 11))
-                            : null,
-                        dense: true,
-                      );
-                    },
+                          title: Text(title,
+                              style: const TextStyle(
+                                  color: AppTheme.textPrimary,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600)),
+                          subtitle: subtitle.isNotEmpty
+                              ? Text(subtitle,
+                                  style: const TextStyle(
+                                      color: AppTheme.textMuted, fontSize: 11))
+                              : (isHist
+                                  ? const Text('Recent Search',
+                                      style: TextStyle(
+                                          color: Colors.amber, fontSize: 11))
+                                  : null),
+                          dense: true,
+                        );
+                      },
+                    ),
                   ),
                 ),
               ),
