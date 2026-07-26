@@ -1,11 +1,12 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:speech_to_text/speech_to_text.dart';
 import 'package:trucker_gps/core/theme/app_theme.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:dio/dio.dart';
 
-/// Destination search bar — smart focus, 10-item history, scrollable 5-item view.
+/// Destination search bar — smart focus, 10-item history, scrollable 5-item view, voice search.
 class SearchBarWidget extends StatefulWidget {
   final void Function(LatLng destination, String name) onDestinationSelected;
   final void Function(List<String> categories)? onFiltersChanged;
@@ -25,12 +26,15 @@ class _SearchBarWidgetState extends State<SearchBarWidget>
   final TextEditingController _controller = TextEditingController();
   final FocusNode _focusNode = FocusNode();
   final Dio _dio = Dio();
+  final SpeechToText _speechToText = SpeechToText();
 
   List<Map<String, dynamic>> _suggestions = [];
   List<Map<String, dynamic>> _history = [];
   final Set<String> _activeFilters = {};
   bool _isSearching = false;
   bool _hasFocus = false;
+  bool _speechEnabled = false;
+  bool _isListening = false;
 
   late AnimationController _animCtrl;
   late Animation<double> _fadeAnim;
@@ -43,6 +47,7 @@ class _SearchBarWidgetState extends State<SearchBarWidget>
     _fadeAnim = CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut);
 
     _loadHistory();
+    _initSpeech();
 
     _focusNode.addListener(() {
       setState(() => _hasFocus = _focusNode.hasFocus);
@@ -58,6 +63,53 @@ class _SearchBarWidgetState extends State<SearchBarWidget>
         _animCtrl.reverse();
       }
     });
+  }
+
+  Future<void> _initSpeech() async {
+    try {
+      final available = await _speechToText.initialize(
+        onError: (_) => setState(() => _isListening = false),
+        onStatus: (status) {
+          if (status == 'done' || status == 'notListening') {
+            setState(() => _isListening = false);
+          }
+        },
+      );
+      if (mounted) {
+        setState(() => _speechEnabled = available);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _toggleListening() async {
+    if (_isListening) {
+      await _speechToText.stop();
+      setState(() => _isListening = false);
+      return;
+    }
+
+    if (!_speechEnabled) {
+      _initSpeech();
+    }
+
+    setState(() {
+      _isListening = true;
+      _hasFocus = true;
+    });
+    _focusNode.requestFocus();
+
+    await _speechToText.listen(
+      onResult: (result) {
+        if (mounted) {
+          setState(() {
+            _controller.text = result.recognizedWords;
+          });
+          _search(result.recognizedWords);
+        }
+      },
+      listenFor: const Duration(seconds: 10),
+      pauseFor: const Duration(seconds: 3),
+    );
   }
 
   Future<void> _loadHistory() async {
@@ -217,6 +269,16 @@ class _SearchBarWidgetState extends State<SearchBarWidget>
                     ),
                     onChanged: _search,
                   ),
+                ),
+                // Voice Search Microphone Button
+                IconButton(
+                  icon: Icon(
+                    _isListening ? Icons.mic : Icons.mic_none_rounded,
+                    color: _isListening ? Colors.redAccent : (_hasFocus ? AppTheme.primary : AppTheme.textMuted),
+                    size: 22,
+                  ),
+                  tooltip: _isListening ? 'Listening...' : 'Voice Search',
+                  onPressed: _toggleListening,
                 ),
                 if (_isSearching)
                   const Padding(
