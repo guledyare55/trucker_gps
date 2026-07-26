@@ -127,12 +127,12 @@ class NavigationBanner extends StatelessWidget {
             ),
           ),
           // Lane Guidance
-          if (step.lanes != null && step.lanes!.isNotEmpty)
+          if (step.lanes.isNotEmpty)
             Container(
               width: double.infinity,
               color: AppTheme.bg2,
               padding: const EdgeInsets.symmetric(vertical: 8),
-              child: LaneGuidanceWidget(lanes: step.lanes!),
+              child: LaneGuidanceWidget(lanes: step.lanes),
             ),
           // Next maneuver (if applicable)
           if (nextStep != null)
