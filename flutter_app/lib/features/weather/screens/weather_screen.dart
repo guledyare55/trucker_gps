@@ -68,9 +68,9 @@ class _WeatherContent extends StatelessWidget {
                   margin: const EdgeInsets.only(bottom: 12),
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: AppTheme.danger.withOpacity(0.15),
+                    color: AppTheme.danger.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: AppTheme.danger.withOpacity(0.5)),
+                    border: Border.all(color: AppTheme.danger.withValues(alpha: 0.5)),
                   ),
                   child: Row(
                     children: [
