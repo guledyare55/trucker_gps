@@ -26,71 +26,86 @@ class NavigationBanner extends StatelessWidget {
     return Container(
       width: double.infinity,
       color: const Color(0xFF003833),
-      child: SafeArea(
-        bottom: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+            child: Row(
+              children: [
+                // Turn arrow
+                Icon(
+                  _directionIcon(step!.type),
+                  color: Colors.white,
+                  size: 56,
+                ),
+                const SizedBox(width: 16),
+                // Distance & Street
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (navState.distanceToNextStepMeters != null)
+                        Text(
+                          _formatDistance(navState.distanceToNextStepMeters!),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 30,
+                            fontWeight: FontWeight.w800,
+                            height: 1,
+                          ),
+                        ),
+                      const SizedBox(height: 2),
+                      Text(
+                        step.instruction,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Lane Guidance
+          if (step.lanes != null && step.lanes!.isNotEmpty)
+            Container(
+              width: double.infinity,
+              color: AppTheme.bg2,
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: LaneGuidanceWidget(lanes: step.lanes!),
+            ),
+          // Next maneuver (if applicable)
+          if (nextStep != null)
+            Container(
+              width: double.infinity,
+              color: const Color(0xFF002B27),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
               child: Row(
                 children: [
-                  // Turn arrow
                   Icon(
-                    _directionIcon(step!.type),
-                    color: Colors.white,
-                    size: 56,
+                    _directionIcon(nextStep.type),
+                    color: Colors.white60,
+                    size: 20,
                   ),
-                  const SizedBox(width: 16),
-                  // Distance & Street
+                  const SizedBox(width: 12),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (navState.distanceToNextStepMeters != null)
-                          Text(
-                            _formatDistance(navState.distanceToNextStepMeters!),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 30,
-                              fontWeight: FontWeight.w800,
-                              height: 1,
-                            ),
-                          ),
-                        const SizedBox(height: 2),
-                        Text(
-                          step.instruction,
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 17,
-                            fontWeight: FontWeight.w500,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
+                    child: Text(
+                      'Then: ${nextStep.instruction}',
+                      style: const TextStyle(color: Colors.white60, fontSize: 15),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
               ),
             ),
-            // Next maneuver (if applicable)
-            if (nextStep != null)
-              Container(
-                width: double.infinity,
-                color: const Color(0xFF002B27),
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-                child: Row(
-                  children: [
-                    Icon(
-                      _directionIcon(nextStep.type),
-                      color: Colors.white60,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
                         'Then: ${nextStep.instruction}',
                         style: const TextStyle(color: Colors.white60, fontSize: 15),
                         maxLines: 1,

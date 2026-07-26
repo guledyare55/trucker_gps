@@ -156,52 +156,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
     }
   }
 
-
-  void _animatedMapMove(LatLng truckLocation, LatLng targetCenter, double targetZoom, double targetRotation) {
-    _movementController?.dispose();
-    _movementController = AnimationController(duration: const Duration(milliseconds: 900), vsync: this);
-
-    final startCenter = _mapController.camera.center;
-    final latTween = Tween<double>(begin: startCenter.latitude, end: targetCenter.latitude);
-    final lngTween = Tween<double>(begin: startCenter.longitude, end: targetCenter.longitude);
-    final zoomTween = Tween<double>(begin: _mapController.camera.zoom, end: targetZoom);
-
-    double startRot = _mapController.camera.rotation;
-    double endRot = targetRotation;
-    if ((endRot - startRot).abs() > 180) {
-      if (endRot > startRot) {
-        startRot += 360;
-      } else {
-        endRot += 360;
-      }
-    }
-    final rotTween = Tween<double>(begin: startRot, end: endRot);
-
-    final truckStart = _animatedTruckPosition.value ?? truckLocation;
-    final truckLatTween = Tween<double>(begin: truckStart.latitude, end: truckLocation.latitude);
-    final truckLngTween = Tween<double>(begin: truckStart.longitude, end: truckLocation.longitude);
-
-    final anim = CurvedAnimation(parent: _movementController!, curve: Curves.linear);
-
-    _movementController!.addListener(() {
-      _mapController.move(
-        LatLng(latTween.evaluate(anim), lngTween.evaluate(anim)),
-        zoomTween.evaluate(anim),
-      );
-      _mapController.rotate(rotTween.evaluate(anim));
-      _animatedTruckPosition.value = LatLng(truckLatTween.evaluate(anim), truckLngTween.evaluate(anim));
-    });
-
-    _movementController!.addStatusListener((status) {
-      if (status == AnimationStatus.completed || status == AnimationStatus.dismissed) {
-        _movementController!.dispose();
-        _movementController = null;
-      }
-    });
-
-    _movementController!.forward();
-  }
-
   @override
   Widget build(BuildContext context) {
     // Only watch specific parts of state so distance updates don't rebuild the entire map
@@ -237,10 +191,12 @@ class _MapScreenState extends ConsumerState<MapScreen>
               targetCenter = const Distance().offset(latLng, 150, pos.heading);
             }
 
-            final targetRotation = isNavigating && pos.heading >= 0 ? (360.0 - pos.heading) : 0.0;
+            final targetRotation = pos.heading >= 0 ? (360.0 - pos.heading) : 0.0;
             final targetZoom = isNavigating ? AppConstants.navigationZoom : AppConstants.defaultZoom;
 
-            _animatedMapMove(latLng, targetCenter, targetZoom, targetRotation);
+            // Direct move provides a smooth 1Hz snap synced perfectly with GPS
+            _mapController.move(targetCenter, targetZoom);
+            _mapController.rotate(targetRotation);
           } catch (_) {}
         }
 
@@ -327,7 +283,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   polylines: [
                     // Outer glow / casing
                     Polyline(
-                      points: activeRoute.polyline,
+                      points: activeRoute.remainingPolyline.isNotEmpty 
+                          ? activeRoute.remainingPolyline 
+                          : activeRoute.polyline,
                       color: AppTheme.primaryDark.withValues(alpha: 0.6),
                       strokeWidth: 11.0,
                       strokeJoin: StrokeJoin.bevel,
@@ -335,7 +293,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
                     ),
                     // Main route line
                     Polyline(
-                      points: activeRoute.polyline,
+                      points: activeRoute.remainingPolyline.isNotEmpty 
+                          ? activeRoute.remainingPolyline 
+                          : activeRoute.polyline,
                       color: AppTheme.primary,
                       strokeWidth: 7.0,
                       strokeJoin: StrokeJoin.bevel,
@@ -354,27 +314,22 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   final locationAsync = ref.watch(locationStreamProvider);
                   final vehicleType = ref.watch(settingsProvider.select((s) => s.vehicleType));
                   return locationAsync.when(
-                    data: (pos) => ValueListenableBuilder<LatLng?>(
-                      valueListenable: _animatedTruckPosition,
-                      builder: (context, animatedPos, _) {
-                        return MarkerLayer(
-                          markers: [
-                            Marker(
-                              point: animatedPos ?? LatLng(pos.latitude, pos.longitude),
-                              width: 52,
-                              height: 52,
-                              child: _buildTruckMarker(vehicleType),
-                            ),
-                            if (activeRoute != null)
-                              Marker(
-                                point: activeRoute.destination,
-                                width: 42,
-                                height: 42,
-                                child: _buildDestMarker(),
-                              ),
-                          ],
-                        );
-                      },
+                    data: (pos) => MarkerLayer(
+                      markers: [
+                        Marker(
+                          point: LatLng(pos.latitude, pos.longitude),
+                          width: 52,
+                          height: 52,
+                          child: _buildTruckMarker(vehicleType),
+                        ),
+                        if (activeRoute != null)
+                          Marker(
+                            point: activeRoute.destination,
+                            width: 42,
+                            height: 42,
+                            child: _buildDestMarker(),
+                          ),
+                      ],
                     ),
                     loading: () => const MarkerLayer(markers: []),
                     error: (_, __) => const MarkerLayer(markers: []),
@@ -386,42 +341,39 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
           // ── TOP overlay (search bar / nav banner) ────────────────────────
           Positioned(
-            top: 0,
+            top: MediaQuery.paddingOf(context).top + 8,
             left: 0,
             right: 0,
-            child: SafeArea(
-              bottom: false,
-              child: activeRoute != null
-                  ? Consumer(
-                      builder: (context, ref, _) {
-                        return NavigationBanner(
-                          navState: ref.watch(navigationProvider),
-                          onCancel: () => ref.read(navigationProvider.notifier).cancelNavigation(),
-                        );
-                      },
-                    )
-                  : SearchBarWidget(
-                      onDestinationSelected: (dest, name) {
-                        ref.read(locationStreamProvider).whenData((pos) {
-                          ref.read(navigationProvider.notifier).calculateRoute(
-                                origin: LatLng(pos.latitude, pos.longitude),
-                                destination: dest,
-                                destinationName: name,
-                                avoidTolls: settings.avoidTolls,
-                                avoidHighways: settings.avoidHighways,
-                              );
-                        });
-                      },
-                      onFiltersChanged: (categories) {
-                        ref.read(locationStreamProvider).whenData((pos) {
-                          ref.read(navigationProvider.notifier).searchNearbyPois(
-                                LatLng(pos.latitude, pos.longitude),
-                                categories,
-                              );
-                        });
-                      },
-                    ),
-            ),
+            child: activeRoute != null
+                ? Consumer(
+                    builder: (context, ref, _) {
+                      return NavigationBanner(
+                        navState: ref.watch(navigationProvider),
+                        onCancel: () => ref.read(navigationProvider.notifier).cancelNavigation(),
+                      );
+                    },
+                  )
+                : SearchBarWidget(
+                    onDestinationSelected: (dest, name) {
+                      ref.read(locationStreamProvider).whenData((pos) {
+                        ref.read(navigationProvider.notifier).calculateRoute(
+                              origin: LatLng(pos.latitude, pos.longitude),
+                              destination: dest,
+                              destinationName: name,
+                              avoidTolls: settings.avoidTolls,
+                              avoidHighways: settings.avoidHighways,
+                            );
+                      });
+                    },
+                    onFiltersChanged: (categories) {
+                      ref.read(locationStreamProvider).whenData((pos) {
+                        ref.read(navigationProvider.notifier).searchNearbyPois(
+                              LatLng(pos.latitude, pos.longitude),
+                              categories,
+                            );
+                      });
+                    },
+                  ),
           ),
 
           // ── BOTTOM overlay (speed HUD + buttons + route bar) ─────────────

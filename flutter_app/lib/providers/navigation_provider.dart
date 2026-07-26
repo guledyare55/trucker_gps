@@ -19,6 +19,7 @@ class NavigationState {
   final double? remainingDurationSeconds;  // live remaining trip time
   final String currentRoadName;            // e.g. "I-24" or "Main Street"
   final String currentRoadRef;             // raw OSM ref e.g. "I 24", "US 64"
+  final List<LatLng> remainingPolyline;    // trimmed polyline from current position to end
   final PoiPoint? selectedPoi;
   final List<PoiPoint> nearbyPois;
   final String? error;
@@ -38,6 +39,7 @@ class NavigationState {
     this.remainingDurationSeconds,
     this.currentRoadName = '',
     this.currentRoadRef = '',
+    this.remainingPolyline = const [],
     this.selectedPoi,
     this.nearbyPois = const [],
     this.error,
@@ -67,6 +69,7 @@ class NavigationState {
     double? remainingDurationSeconds,
     String? currentRoadName,
     String? currentRoadRef,
+    List<LatLng>? remainingPolyline,
     PoiPoint? selectedPoi,
     List<PoiPoint>? nearbyPois,
     String? error,
@@ -88,6 +91,7 @@ class NavigationState {
       remainingDurationSeconds: remainingDurationSeconds ?? this.remainingDurationSeconds,
       currentRoadName: currentRoadName ?? this.currentRoadName,
       currentRoadRef: currentRoadRef ?? this.currentRoadRef,
+      remainingPolyline: remainingPolyline ?? this.remainingPolyline,
       selectedPoi: clearPoi ? null : (selectedPoi ?? this.selectedPoi),
       nearbyPois: nearbyPois ?? this.nearbyPois,
       error: clearError ? null : (error ?? this.error),
@@ -176,6 +180,7 @@ class NavigationNotifier extends StateNotifier<NavigationState> {
         remainingDurationSeconds: route.durationSeconds,
         currentRoadName: route.steps.isNotEmpty ? route.steps.first.roadName : '',
         currentRoadRef: route.steps.isNotEmpty ? route.steps.first.roadRef : '',
+        remainingPolyline: route.polyline,
       );
 
       // Fetch truck POIs along the route in the background (non-blocking)
@@ -658,10 +663,13 @@ out center tags 40;
     }
 
     final currentStep = steps[idx];
+    
+    // Distance to the NEXT maneuver, or the destination if we're on the last step
+    final targetLocation = idx < steps.length - 1 ? steps[idx + 1].location : currentStep.location;
     final dist = const Distance().as(
       LengthUnit.Meter,
       currentLocation,
-      currentStep.location,
+      targetLocation,
     );
 
     // Voice Alerts for POIs
@@ -676,7 +684,7 @@ out center tags 40;
       }
     }
 
-    // Compute remaining distance = dist to current step + sum of all future steps
+    // Compute remaining distance = dist to next maneuver + sum of all future steps
     double remaining = dist;
     for (int i = idx + 1; i < steps.length; i++) {
       remaining += steps[i].distanceMeters;
@@ -685,6 +693,20 @@ out center tags 40;
     final totalDist = state.activeRoute!.distanceMeters;
     final totalDur = state.activeRoute!.durationSeconds;
     final remainingDur = totalDist > 0 ? (remaining / totalDist) * totalDur : 0.0;
+
+    // Trim polyline
+    final polyline = state.activeRoute!.polyline;
+    int closestIdx = 0;
+    double minPolyDist = double.infinity;
+    for (int i = 0; i < polyline.length; i++) {
+      final d = const Distance().as(LengthUnit.Meter, currentLocation, polyline[i]);
+      if (d < minPolyDist) {
+        minPolyDist = d;
+        closestIdx = i;
+      }
+    }
+    // Only keep points from closest index onwards, plus the current location at the start
+    final trimmedPolyline = [currentLocation, ...polyline.sublist(closestIdx)];
 
     // Current road info from the active step
     final roadName = currentStep.roadName;
@@ -695,12 +717,13 @@ out center tags 40;
     state = state.copyWith(
       currentStepIndex: newIdx,
       distanceToNextStepMeters: newIdx != idx
-          ? const Distance().as(LengthUnit.Meter, currentLocation, steps[newIdx].location)
+          ? const Distance().as(LengthUnit.Meter, currentLocation, steps[newIdx < steps.length - 1 ? newIdx + 1 : newIdx].location)
           : dist,
       remainingDistanceMeters: remaining,
       remainingDurationSeconds: remainingDur,
       currentRoadName: roadName,
       currentRoadRef: roadRef,
+      remainingPolyline: trimmedPolyline,
     );
 
     // Check arrival: within 25m of the last step
