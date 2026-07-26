@@ -37,14 +37,14 @@ class FuelService {
     const distanceCalc = Distance();
 
     try {
-      // 1.0 degree is approx 60-70 miles bounding box
+      // 0.5 degree is approx 35 miles bounding box (prevents Overpass timeouts)
       final query = '''
-        [out:json][timeout:15];
+        [out:json][timeout:25];
         (
-          node["amenity"="fuel"](${lat - 1.0},${lon - 1.0},${lat + 1.0},${lon + 1.0});
-          way["amenity"="fuel"](${lat - 1.0},${lon - 1.0},${lat + 1.0},${lon + 1.0});
+          node["amenity"="fuel"](${lat - 0.5},${lon - 0.5},${lat + 0.5},${lon + 0.5});
+          way["amenity"="fuel"](${lat - 0.5},${lon - 0.5},${lat + 0.5},${lon + 0.5});
         );
-        out center 15;
+        out center 25;
       ''';
 
       final response = await _dio.post(
@@ -60,8 +60,7 @@ class FuelService {
         final tags = el['tags'] as Map<String, dynamic>? ?? {};
         final rawName = tags['name'] ?? tags['brand'] ?? 'Truck Stop / Fuel Station';
         final brand = tags['brand'] ?? _guessBrand(rawName);
-        if (brand == 'Unknown') continue; // Skip non-major truck stops to simulate commercial focus
-
+        
         final stLat = el['lat'] ?? el['center']?['lat'];
         final stLon = el['lon'] ?? el['center']?['lon'];
         if (stLat == null || stLon == null) continue;

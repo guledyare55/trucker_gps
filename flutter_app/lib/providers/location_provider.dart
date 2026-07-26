@@ -11,14 +11,33 @@ final locationStreamProvider = StreamProvider<Position>((ref) async* {
 
   // Emit current position immediately so UI doesn't hang waiting for movement
   try {
-    final currentPos = await Geolocator.getCurrentPosition(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.bestForNavigation,
-        timeLimit: Duration(seconds: 5),
-      ),
+    var pos = await Geolocator.getLastKnownPosition();
+    if (pos != null) {
+      yield pos;
+    } else {
+      pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.low,
+          timeLimit: Duration(seconds: 5),
+        ),
+      );
+      yield pos;
+    }
+  } catch (_) {
+    // If GPS is disabled or times out, yield a default fallback to prevent UI hang
+    yield Position(
+      longitude: -98.5795,
+      latitude: 39.8283,
+      timestamp: DateTime.now(),
+      accuracy: 0.0,
+      altitude: 0.0,
+      altitudeAccuracy: 0.0,
+      heading: 0.0,
+      headingAccuracy: 0.0,
+      speed: 0.0,
+      speedAccuracy: 0.0,
     );
-    yield currentPos;
-  } catch (_) {}
+  }
 
   // Then yield updates
   yield* Geolocator.getPositionStream(locationSettings: locationSettings);
